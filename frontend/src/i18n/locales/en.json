@@ -49,16 +49,12 @@
   "workspace": {
     "conversations": "Conversations",
     "conversationsAria": "Conversations",
-    "memberEmails": "Member emails",
-    "memberEmailsPlaceholder": "other@example.com",
-    "titleOptional": "Title (optional)",
-    "creating": "Creating…",
-    "newConversation": "New conversation",
+    "openFromFriends": "Start a chat from Friends.",
     "noConversations": "No conversations yet.",
     "loadingSession": "Loading session…",
     "homeEyebrow": "Workspace",
     "homeTitle": "Select a conversation",
-    "homeLead": "Create a conversation with another registered user email, or open one from the list.",
+    "homeLead": "Open a friend from Friends to start a 1:1 chat, or pick one from the list.",
     "roomEyebrow": "Conversation",
     "loadingConversation": "Loading conversation…",
     "noMessages": "No messages yet.",
@@ -96,7 +92,9 @@
     "accepted": "Friend request accepted.",
     "rejected": "Friend request rejected.",
     "noIncoming": "No pending requests.",
-    "noFriends": "No friends yet."
+    "noFriends": "No friends yet.",
+    "message": "Message",
+    "openingChat": "Opening…"
   },
   "common": {
     "loading": "Loading…",

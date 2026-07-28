@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"strings"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,80 +17,82 @@ type ConversationStore interface {
 	ListForUser(ctx context.Context, userID string) ([]domain.Conversation, error)
 	GetIfMember(ctx context.Context, conversationID, userID string) (domain.Conversation, error)
 	MarkRead(ctx context.Context, conversationID, userID string, seq int64) (int64, error)
+	FindDirectBetween(ctx context.Context, userID1, userID2 string) (domain.Conversation, error)
 }
 
-// UserEmailLookup resolves emails to user ids.
-type UserEmailLookup interface {
-	FindIDsByEmails(ctx context.Context, emails []string) (map[string]string, error)
+// ConversationUserLookup resolves users for open-DM.
+type ConversationUserLookup interface {
 	FindByID(ctx context.Context, id string) (domain.User, error)
 }
 
-// ConversationService implements create/list/get with membership ACL.
+// FriendshipChecker reports whether two users are accepted friends.
+type FriendshipChecker interface {
+	AreFriends(ctx context.Context, userID1, userID2 string) (bool, error)
+}
+
+// ConversationService implements open-DM / list / get with membership ACL.
 type ConversationService struct {
-	convs ConversationStore
-	users UserEmailLookup
-	now   func() time.Time
+	convs   ConversationStore
+	users   ConversationUserLookup
+	friends FriendshipChecker
+	now     func() time.Time
 }
 
-func NewConversationService(convs ConversationStore, users UserEmailLookup) *ConversationService {
-	return &ConversationService{convs: convs, users: users, now: time.Now}
+func NewConversationService(convs ConversationStore, users ConversationUserLookup, friends FriendshipChecker) *ConversationService {
+	return &ConversationService{convs: convs, users: users, friends: friends, now: time.Now}
 }
 
-type CreateConversationInput struct {
-	Title         string
-	MemberEmails  []string
-	CreatorUserID string
-}
-
-func (s *ConversationService) Create(ctx context.Context, in CreateConversationInput) (domain.Conversation, error) {
-	if in.CreatorUserID == "" {
+// OpenDirect get-or-creates the unique 1:1 conversation between self and peer.
+// Requires an accepted friendship. Does not gate historical non-friend conversations elsewhere.
+func (s *ConversationService) OpenDirect(ctx context.Context, selfUserID, peerUserID string) (domain.Conversation, error) {
+	if selfUserID == "" {
 		return domain.Conversation{}, apperr.Unauthorized("missing credentials")
 	}
-	if s.convs == nil || s.users == nil {
+	if peerUserID == "" {
+		return domain.Conversation{}, apperr.Invalid("peer user id required")
+	}
+	if peerUserID == selfUserID {
+		return domain.Conversation{}, apperr.Invalid("cannot open conversation with yourself")
+	}
+	if s.convs == nil || s.users == nil || s.friends == nil {
 		return domain.Conversation{}, apperr.Unavailable("database not configured")
 	}
 
-	emails := normalizeEmailList(in.MemberEmails)
-	idMap, err := s.users.FindIDsByEmails(ctx, emails)
+	if _, err := s.users.FindByID(ctx, peerUserID); err != nil {
+		if errors.Is(err, apperr.ErrNotFound) {
+			return domain.Conversation{}, apperr.NotFound("user not found")
+		}
+		return domain.Conversation{}, err
+	}
+
+	ok, err := s.friends.AreFriends(ctx, selfUserID, peerUserID)
 	if err != nil {
 		return domain.Conversation{}, err
 	}
-	var missing []string
-	for _, e := range emails {
-		if _, ok := idMap[e]; !ok {
-			missing = append(missing, e)
-		}
-	}
-	if len(missing) > 0 {
-		return domain.Conversation{}, apperr.Invalid("unknown member email: " + strings.Join(missing, ", "))
+	if !ok {
+		return domain.Conversation{}, apperr.Forbidden("not friends")
 	}
 
-	memberSet := map[string]struct{}{in.CreatorUserID: {}}
-	for _, id := range idMap {
-		memberSet[id] = struct{}{}
+	existing, err := s.convs.FindDirectBetween(ctx, selfUserID, peerUserID)
+	if err == nil {
+		return s.convs.GetIfMember(ctx, existing.ID, selfUserID)
 	}
-	memberIDs := make([]string, 0, len(memberSet))
-	for id := range memberSet {
-		memberIDs = append(memberIDs, id)
+	if !errors.Is(err, apperr.ErrNotFound) {
+		return domain.Conversation{}, err
 	}
 
 	now := s.now().UTC()
-	var titlePtr *string
-	title := strings.TrimSpace(in.Title)
-	if title != "" {
-		titlePtr = &title
-	}
 	c := domain.Conversation{
 		ID:        uuid.NewString(),
-		Title:     titlePtr,
-		CreatedBy: in.CreatorUserID,
+		Title:     nil,
+		CreatedBy: selfUserID,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	if err := s.convs.Create(ctx, c, memberIDs); err != nil {
+	if err := s.convs.Create(ctx, c, []string{selfUserID, peerUserID}); err != nil {
 		return domain.Conversation{}, err
 	}
-	return s.convs.GetIfMember(ctx, c.ID, in.CreatorUserID)
+	return s.convs.GetIfMember(ctx, c.ID, selfUserID)
 }
 
 func (s *ConversationService) List(ctx context.Context, userID string) ([]domain.Conversation, error) {
@@ -155,21 +157,4 @@ func (s *ConversationService) MarkRead(ctx context.Context, conversationID, user
 		return MarkReadResult{}, err
 	}
 	return MarkReadResult{LastReadSeq: last, UnreadCount: 0}, nil
-}
-
-func normalizeEmailList(in []string) []string {
-	seen := map[string]struct{}{}
-	var out []string
-	for _, raw := range in {
-		e := strings.TrimSpace(strings.ToLower(raw))
-		if e == "" {
-			continue
-		}
-		if _, ok := seen[e]; ok {
-			continue
-		}
-		seen[e] = struct{}{}
-		out = append(out, e)
-	}
-	return out
 }

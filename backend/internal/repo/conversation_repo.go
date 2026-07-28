@@ -54,6 +54,42 @@ func (r *ConversationRepo) Create(ctx context.Context, c domain.Conversation, me
 	return nil
 }
 
+// FindDirectBetween returns one 1:1 conversation whose members are exactly {userID1, userID2}.
+// Preference: latest last_message_at, else latest created_at (R6).
+func (r *ConversationRepo) FindDirectBetween(ctx context.Context, userID1, userID2 string) (domain.Conversation, error) {
+	var c domain.Conversation
+	var title *string
+	err := r.pool.QueryRow(ctx, `
+		SELECT c.id, c.title, c.created_by, c.created_at, c.updated_at,
+			c.last_message_at, c.last_message_seq, c.last_message_preview, c.last_message_sender_id
+		FROM conversations c
+		WHERE (
+			SELECT COUNT(*)::int FROM conversation_members cm WHERE cm.conversation_id = c.id
+		) = 2
+		AND EXISTS (
+			SELECT 1 FROM conversation_members cm
+			WHERE cm.conversation_id = c.id AND cm.user_id = $1
+		)
+		AND EXISTS (
+			SELECT 1 FROM conversation_members cm
+			WHERE cm.conversation_id = c.id AND cm.user_id = $2
+		)
+		ORDER BY c.last_message_at DESC NULLS LAST, c.created_at DESC, c.id DESC
+		LIMIT 1
+	`, userID1, userID2).Scan(
+		&c.ID, &title, &c.CreatedBy, &c.CreatedAt, &c.UpdatedAt,
+		&c.LastMessageAt, &c.LastMessageSeq, &c.LastMessagePreview, &c.LastMessageSenderID,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Conversation{}, apperr.NotFound("conversation not found")
+		}
+		return domain.Conversation{}, apperr.Internal("find direct conversation failed", err)
+	}
+	c.Title = title
+	return c, nil
+}
+
 func (r *ConversationRepo) ListForUser(ctx context.Context, userID string) ([]domain.Conversation, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT c.id, c.title, c.created_by, c.created_at, c.updated_at,
@@ -89,7 +125,50 @@ func (r *ConversationRepo) ListForUser(ctx context.Context, userID string) ([]do
 		}
 		out = append(out, c)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := r.attachMembers(ctx, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// attachMembers batch-loads members for list rows (sidebar titles need peer emails).
+func (r *ConversationRepo) attachMembers(ctx context.Context, list []domain.Conversation) error {
+	if len(list) == 0 {
+		return nil
+	}
+	ids := make([]string, len(list))
+	index := make(map[string]int, len(list))
+	for i, c := range list {
+		ids[i] = c.ID
+		index[c.ID] = i
+	}
+	rows, err := r.pool.Query(ctx, `
+		SELECT m.conversation_id, u.id, u.email, u.created_at, u.updated_at
+		FROM conversation_members m
+		INNER JOIN users u ON u.id = m.user_id
+		WHERE m.conversation_id = ANY($1)
+		ORDER BY m.conversation_id ASC, m.joined_at ASC
+	`, ids)
+	if err != nil {
+		return apperr.Internal("list conversation members failed", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var convID string
+		var u domain.User
+		if err := rows.Scan(&convID, &u.ID, &u.Email, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			return apperr.Internal("scan conversation member failed", err)
+		}
+		i, ok := index[convID]
+		if !ok {
+			continue
+		}
+		list[i].Members = append(list[i].Members, u)
+	}
+	return rows.Err()
 }
 
 func scanConversationListRow(row pgx.Row) (domain.Conversation, error) {

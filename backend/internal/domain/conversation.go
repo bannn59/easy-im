@@ -9,7 +9,7 @@ type Conversation struct {
 	CreatedBy string
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	Members   []User // optional, filled on detail/create
+	Members   []User // filled on detail/create; also list (sidebar titles)
 
 	// Last message head (denormalized; nil/empty when never messaged).
 	LastMessageAt          *time.Time

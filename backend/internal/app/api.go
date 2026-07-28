@@ -40,7 +40,7 @@ func NewAPIHandler(opts APIOptions) http.Handler {
 				TokenTTL:  opts.AuthTokenTTL,
 			},
 		)
-		conv = service.NewConversationService(convs, users)
+		conv = service.NewConversationService(convs, users, friendRepo)
 		msg = service.NewMessageService(messages, convs, rtHub)
 		friends = service.NewFriendService(friendRepo, users)
 	}

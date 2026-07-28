@@ -12,6 +12,7 @@ import (
 // FriendHandler serves /v1/friends*.
 type FriendHandler struct {
 	Friends *service.FriendService
+	Conv    *service.ConversationService
 }
 
 type sendFriendRequestBody struct {
@@ -128,4 +129,18 @@ func (h *FriendHandler) Reject(w http.ResponseWriter, r *http.Request, requestID
 		return
 	}
 	writeJSON(w, http.StatusOK, toFriendRequestDTO(req))
+}
+
+// OpenConversation get-or-creates a 1:1 conversation with an accepted friend.
+func (h *FriendHandler) OpenConversation(w http.ResponseWriter, r *http.Request, peerUserID string) {
+	if h.Conv == nil {
+		WriteError(w, r, apperr.Unavailable("conversations not configured"))
+		return
+	}
+	c, err := h.Conv.OpenDirect(r.Context(), UserIDFromContext(r.Context()), peerUserID)
+	if err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toConversationDTO(c))
 }

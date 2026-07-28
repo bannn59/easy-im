@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   acceptFriendRequest,
   listFriends,
   listIncomingFriendRequests,
+  openFriendConversation,
   rejectFriendRequest,
   sendFriendRequest,
   type FriendRequest,
@@ -15,6 +16,7 @@ import { useSession } from '../../app/Session';
 
 export function FriendsPage() {
   const session = useSession();
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
@@ -24,6 +26,7 @@ export function FriendsPage() {
   const [incoming, setIncoming] = useState<FriendRequest[]>([]);
   const [friends, setFriends] = useState<PublicUser[]>([]);
   const [actingId, setActingId] = useState<string | null>(null);
+  const [openingId, setOpeningId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!session.token) return;
@@ -110,6 +113,21 @@ export function FriendsPage() {
     }
   }
 
+  async function onMessage(peer: PublicUser) {
+    if (!session.token) return;
+    setOpeningId(peer.id);
+    setError(null);
+    setNotice(null);
+    try {
+      const c = await openFriendConversation(session.token, peer.id);
+      navigate(`/app/c/${c.id}`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('common.requestFailed'));
+    } finally {
+      setOpeningId(null);
+    }
+  }
+
   return (
     <section className="page friends">
       <p className="page__eyebrow">{t('friends.eyebrow')}</p>
@@ -192,11 +210,24 @@ export function FriendsPage() {
           {t('friends.list')}
         </h2>
         <ul className="friends__list">
-          {friends.map((f) => (
-            <li key={f.id} className="friends__row">
-              <span className="friends__email">{f.email}</span>
-            </li>
-          ))}
+          {friends.map((f) => {
+            const busy = openingId === f.id;
+            return (
+              <li key={f.id} className="friends__row">
+                <span className="friends__email">{f.email}</span>
+                <span className="friends__actions">
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={busy || openingId !== null}
+                    onClick={() => void onMessage(f)}
+                  >
+                    {busy ? t('friends.openingChat') : t('friends.message')}
+                  </button>
+                </span>
+              </li>
+            );
+          })}
           {!loading && friends.length === 0 && (
             <li className="muted">{t('friends.noFriends')}</li>
           )}

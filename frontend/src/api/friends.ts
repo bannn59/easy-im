@@ -1,5 +1,6 @@
 import { apiRequest } from './http';
 import type { PublicUser } from './auth';
+import type { Conversation } from './conversations';
 
 export type FriendRequestStatus = 'pending' | 'accepted' | 'rejected';
 
@@ -42,6 +43,15 @@ export function acceptFriendRequest(token: string, requestId: string): Promise<F
 
 export function rejectFriendRequest(token: string, requestId: string): Promise<FriendRequest> {
   return apiRequest(`/v1/friends/requests/${requestId}/reject`, {
+    method: 'POST',
+    token,
+    body: {},
+  });
+}
+
+/** Get-or-create a 1:1 conversation with an accepted friend. */
+export function openFriendConversation(token: string, peerUserId: string): Promise<Conversation> {
+  return apiRequest(`/v1/friends/${peerUserId}/conversation`, {
     method: 'POST',
     token,
     body: {},

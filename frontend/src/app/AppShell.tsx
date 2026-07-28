@@ -1,13 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { Link, Navigate, Outlet, useNavigate, useMatch } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, Navigate, Outlet, useMatch } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import {
-  createConversation,
-  listConversations,
-  type Conversation,
-} from '../api/conversations';
+import { listConversations, type Conversation } from '../api/conversations';
 import { ApiError } from '../api/http';
 import type { Message } from '../api/messages';
+import { shortName } from '../features/chat/types';
 import { connectRealtime } from '../realtime';
 import { useSession } from './Session';
 
@@ -58,7 +55,7 @@ function previewLine(
     return t('workspace.youPreview', { body });
   }
   // Group: prefix short sender name only when we have an email (avoid raw UUID).
-  const isGroup = (c.member_count ?? 0) > 2;
+  const isGroup = (c.member_count ?? c.members?.length ?? 0) > 2;
   if (isGroup) {
     const who = shortLocal(lm.sender_email || '');
     return who ? `${who}: ${body}` : body;
@@ -66,9 +63,24 @@ function previewLine(
   return body;
 }
 
+/** Mirror ConversationRoom title: explicit → group label → peer short name → untitled. */
+function conversationListTitle(
+  c: Conversation,
+  selfId: string | undefined,
+  t: (k: string) => string,
+): string {
+  const explicit = c.title?.trim();
+  if (explicit) return explicit;
+  const members = c.members ?? [];
+  const count = c.member_count ?? members.length;
+  if (count > 2) return t('chat.groupUntitled');
+  const peer = members.find((m) => m.id !== selfId);
+  if (peer) return shortName(peer.email) || peer.email;
+  return t('common.untitled');
+}
+
 export function AppShell() {
   const session = useSession();
-  const navigate = useNavigate();
   const roomMatch = useMatch('/app/c/:id');
   const activeId = roomMatch?.params.id;
   const activeIdRef = useRef(activeId);
@@ -77,9 +89,6 @@ export function AppShell() {
   const [items, setItems] = useState<Conversation[]>([]);
   const [loadingList, setLoadingList] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
-  const [memberEmail, setMemberEmail] = useState('');
-  const [title, setTitle] = useState('');
-  const [creating, setCreating] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!session.token) return;
@@ -166,67 +175,14 @@ export function AppShell() {
     return <Navigate to="/login" replace />;
   }
 
-  async function onCreate(e: FormEvent) {
-    e.preventDefault();
-    if (!session.token) return;
-    setCreating(true);
-    setListError(null);
-    try {
-      const emails = memberEmail
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const c = await createConversation(session.token, {
-        title: title.trim() || undefined,
-        member_emails: emails,
-      });
-      setMemberEmail('');
-      setTitle('');
-      await refresh();
-      navigate(`/app/c/${c.id}`);
-    } catch (err) {
-      setListError(err instanceof ApiError ? err.message : t('common.createFailed'));
-    } finally {
-      setCreating(false);
-    }
-  }
-
   return (
     <div className="workspace">
       <aside className="workspace__side" aria-label={t('workspace.conversationsAria')}>
         <div className="workspace__side-head">
           <p className="page__eyebrow">{t('workspace.conversations')}</p>
           <p className="muted">{session.user.email}</p>
+          <p className="muted workspace__open-hint">{t('workspace.openFromFriends')}</p>
         </div>
-
-        <form className="workspace__create" onSubmit={onCreate}>
-          <div className="field">
-            <label className="field__label" htmlFor="member-emails">
-              {t('workspace.memberEmails')}
-            </label>
-            <input
-              id="member-emails"
-              className="field__input"
-              placeholder={t('workspace.memberEmailsPlaceholder')}
-              value={memberEmail}
-              onChange={(ev) => setMemberEmail(ev.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label className="field__label" htmlFor="conv-title">
-              {t('workspace.titleOptional')}
-            </label>
-            <input
-              id="conv-title"
-              className="field__input"
-              value={title}
-              onChange={(ev) => setTitle(ev.target.value)}
-            />
-          </div>
-          <button className="btn" type="submit" disabled={creating}>
-            {creating ? t('workspace.creating') : t('workspace.newConversation')}
-          </button>
-        </form>
 
         {listError && (
           <p className="err" role="alert">
@@ -250,7 +206,7 @@ export function AppShell() {
                 >
                   <div className="workspace__item-top">
                     <span className="workspace__item-title">
-                      {c.title?.trim() ? c.title : t('common.untitled')}
+                      {conversationListTitle(c, session.user?.id, t)}
                     </span>
                     <span className="workspace__item-time muted">{time}</span>
                   </div>

@@ -49,16 +49,12 @@
   "workspace": {
     "conversations": "会话",
     "conversationsAria": "会话列表",
-    "memberEmails": "成员邮箱",
-    "memberEmailsPlaceholder": "other@example.com",
-    "titleOptional": "标题（可选）",
-    "creating": "创建中…",
-    "newConversation": "新建会话",
+    "openFromFriends": "从「好友」发起私聊。",
     "noConversations": "还没有会话。",
     "loadingSession": "正在验证登录状态…",
     "homeEyebrow": "工作区",
     "homeTitle": "选择一个会话",
-    "homeLead": "用已注册用户的邮箱创建会话，或从列表中打开。",
+    "homeLead": "在好友页选择好友开始 1:1 聊天，或从列表中打开已有会话。",
     "roomEyebrow": "会话",
     "loadingConversation": "正在加载会话…",
     "noMessages": "还没有消息。",
@@ -96,7 +92,9 @@
     "accepted": "已同意好友请求。",
     "rejected": "已拒绝好友请求。",
     "noIncoming": "暂无待处理请求。",
-    "noFriends": "还没有好友。"
+    "noFriends": "还没有好友。",
+    "message": "发消息",
+    "openingChat": "打开中…"
   },
   "common": {
     "loading": "加载中…",

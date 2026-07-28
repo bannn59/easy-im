@@ -25,13 +25,6 @@ export function listConversations(token: string): Promise<{ conversations: Conve
   return apiRequest('/v1/conversations', { method: 'GET', token });
 }
 
-export function createConversation(
-  token: string,
-  body: { title?: string; member_emails: string[] },
-): Promise<Conversation> {
-  return apiRequest('/v1/conversations', { method: 'POST', token, body });
-}
-
 export function getConversation(token: string, id: string): Promise<Conversation> {
   return apiRequest(`/v1/conversations/${id}`, { method: 'GET', token });
 }

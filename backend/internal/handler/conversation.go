@@ -17,11 +17,6 @@ type ConversationHandler struct {
 	Conv *service.ConversationService
 }
 
-type createConversationBody struct {
-	Title        string   `json:"title"`
-	MemberEmails []string `json:"member_emails"`
-}
-
 type lastMessageDTO struct {
 	Seq         int64   `json:"seq"`
 	Body        string  `json:"body"`
@@ -72,28 +67,6 @@ func toConversationDTO(c domain.Conversation) conversationDTO {
 }
 
 const timeRFC3339 = "2006-01-02T15:04:05Z07:00"
-
-func (h *ConversationHandler) Create(w http.ResponseWriter, r *http.Request) {
-	if h.Conv == nil {
-		WriteError(w, r, apperr.Unavailable("conversations not configured"))
-		return
-	}
-	var body createConversationBody
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		WriteError(w, r, apperr.Invalid("invalid JSON body"))
-		return
-	}
-	c, err := h.Conv.Create(r.Context(), service.CreateConversationInput{
-		Title:         body.Title,
-		MemberEmails:  body.MemberEmails,
-		CreatorUserID: UserIDFromContext(r.Context()),
-	})
-	if err != nil {
-		WriteError(w, r, err)
-		return
-	}
-	writeJSON(w, http.StatusCreated, toConversationDTO(c))
-}
 
 func (h *ConversationHandler) List(w http.ResponseWriter, r *http.Request) {
 	if h.Conv == nil {
