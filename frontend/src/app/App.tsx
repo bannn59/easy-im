@@ -1,27 +1,55 @@
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom';
-import { HomePage } from './HomePage';
+import { AuthPage } from './AuthPage';
+import { AppShell } from './AppShell';
 import { HealthPage } from './HealthPage';
+import { HomePage } from './HomePage';
+import { SessionProvider, useSession } from './Session';
+
+function Header() {
+  const session = useSession();
+  return (
+    <header className="shell__header">
+      <strong>easy-im</strong>
+      <nav className="shell__nav">
+        <NavLink to="/" end>
+          Home
+        </NavLink>
+        <NavLink to="/health">API health</NavLink>
+        {session.user ? (
+          <>
+            <NavLink to="/app">App</NavLink>
+            <button type="button" className="linkish" onClick={() => session.logout()}>
+              Sign out
+            </button>
+          </>
+        ) : (
+          <>
+            <NavLink to="/login">Sign in</NavLink>
+            <NavLink to="/register">Register</NavLink>
+          </>
+        )}
+      </nav>
+    </header>
+  );
+}
 
 export function App() {
   return (
-    <BrowserRouter>
-      <div className="shell">
-        <header className="shell__header">
-          <strong>easy-im</strong>
-          <nav className="shell__nav">
-            <NavLink to="/" end>
-              Home
-            </NavLink>
-            <NavLink to="/health">API health</NavLink>
-          </nav>
-        </header>
-        <main className="shell__main">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/health" element={<HealthPage />} />
-          </Routes>
-        </main>
-      </div>
-    </BrowserRouter>
+    <SessionProvider>
+      <BrowserRouter>
+        <div className="shell">
+          <Header />
+          <main className="shell__main">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/health" element={<HealthPage />} />
+              <Route path="/login" element={<AuthPage mode="login" />} />
+              <Route path="/register" element={<AuthPage mode="register" />} />
+              <Route path="/app" element={<AppShell />} />
+            </Routes>
+          </main>
+        </div>
+      </BrowserRouter>
+    </SessionProvider>
   );
 }
