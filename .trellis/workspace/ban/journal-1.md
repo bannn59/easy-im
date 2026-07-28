@@ -111,3 +111,34 @@ Scaffolded easy-im monorepo: Go API with /healthz, Vite React-TS shell (home + h
 
 - Auth minimal slice or conversation CRUD
 - Re-run feature map after first user-facing feature
+
+
+## Session 4: Feature development roadmap
+
+**Date**: 2026-07-28
+**Task**: Feature development roadmap
+**Branch**: `main`
+
+### Summary
+
+Documented easy-im phased roadmap from feature map + scaffold: P0–P6, M0–M5, T1–T6 splits, risks, default next T1/T2. Archived feature-dev-roadmap.
+
+### Main Changes
+
+- research/index.md + roadmap.md with map calibration after M0 scaffold
+- Suggested Trellis sequence T1 DB/errors → T2 auth → T3 conv → T4 HTTP msg → T5 WS → T6 remap
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2772103` | (see git log) |
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- Start T1: Postgres migrations + API error middleware
+- Or T2: register/login + /me + login page (M1)

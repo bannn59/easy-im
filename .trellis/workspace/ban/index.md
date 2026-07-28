@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 3
+- **Total Sessions**: 4
 - **Last Active**: 2026-07-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~113 | Active |
+| `journal-1.md` | ~144 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 4 | 2026-07-28 | Feature development roadmap | `2772103` | `main` |
 | 3 | 2026-07-28 | Monorepo scaffold backend+frontend | `6b1fdd7`, `ae3de24`, `706344f`, `0302230`, `7c84abb` | `main` |
 | 2 | 2026-07-28 | Feature map survey (empty product) | `ba2696d` | `main` |
 | 1 | 2026-07-28 | Bootstrap easy-im Trellis specs | `3d7f0a3` | `main` |
