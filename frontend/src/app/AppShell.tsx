@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, Navigate, Outlet, useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   createConversation,
   getConversation,
@@ -14,6 +15,7 @@ import { useSession } from './Session';
 export function AppShell() {
   const session = useSession();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [items, setItems] = useState<Conversation[]>([]);
   const [loadingList, setLoadingList] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
@@ -29,11 +31,11 @@ export function AppShell() {
       const res = await listConversations(session.token);
       setItems(res.conversations ?? []);
     } catch (err) {
-      setListError(err instanceof ApiError ? err.message : 'Failed to load');
+      setListError(err instanceof ApiError ? err.message : t('common.failedToLoad'));
     } finally {
       setLoadingList(false);
     }
-  }, [session.token]);
+  }, [session.token, t]);
 
   useEffect(() => {
     if (session.user && session.token) {
@@ -44,7 +46,7 @@ export function AppShell() {
   if (session.loading) {
     return (
       <section className="page">
-        <p className="loading">Loading session…</p>
+        <p className="loading">{t('workspace.loadingSession')}</p>
       </section>
     );
   }
@@ -71,7 +73,7 @@ export function AppShell() {
       await refresh();
       navigate(`/app/c/${c.id}`);
     } catch (err) {
-      setListError(err instanceof ApiError ? err.message : 'Create failed');
+      setListError(err instanceof ApiError ? err.message : t('common.createFailed'));
     } finally {
       setCreating(false);
     }
@@ -79,28 +81,28 @@ export function AppShell() {
 
   return (
     <div className="workspace">
-      <aside className="workspace__side" aria-label="Conversations">
+      <aside className="workspace__side" aria-label={t('workspace.conversationsAria')}>
         <div className="workspace__side-head">
-          <p className="page__eyebrow">Conversations</p>
+          <p className="page__eyebrow">{t('workspace.conversations')}</p>
           <p className="muted">{session.user.email}</p>
         </div>
 
         <form className="workspace__create" onSubmit={onCreate}>
           <div className="field">
             <label className="field__label" htmlFor="member-emails">
-              Member emails
+              {t('workspace.memberEmails')}
             </label>
             <input
               id="member-emails"
               className="field__input"
-              placeholder="other@example.com"
+              placeholder={t('workspace.memberEmailsPlaceholder')}
               value={memberEmail}
               onChange={(ev) => setMemberEmail(ev.target.value)}
             />
           </div>
           <div className="field">
             <label className="field__label" htmlFor="conv-title">
-              Title (optional)
+              {t('workspace.titleOptional')}
             </label>
             <input
               id="conv-title"
@@ -110,7 +112,7 @@ export function AppShell() {
             />
           </div>
           <button className="btn" type="submit" disabled={creating}>
-            {creating ? 'Creating…' : 'New conversation'}
+            {creating ? t('workspace.creating') : t('workspace.newConversation')}
           </button>
         </form>
 
@@ -119,24 +121,24 @@ export function AppShell() {
             {listError}
           </p>
         )}
-        {loadingList && <p className="loading">Loading…</p>}
+        {loadingList && <p className="loading">{t('common.loading')}</p>}
 
         <ul className="workspace__list">
           {items.map((c) => (
             <li key={c.id}>
               <Link to={`/app/c/${c.id}`} className="workspace__item">
-                <span>{c.title?.trim() ? c.title : 'Untitled'}</span>
+                <span>{c.title?.trim() ? c.title : t('common.untitled')}</span>
                 <span className="muted">{c.id.slice(0, 8)}</span>
               </Link>
             </li>
           ))}
           {!loadingList && items.length === 0 && (
-            <li className="muted">No conversations yet.</li>
+            <li className="muted">{t('workspace.noConversations')}</li>
           )}
         </ul>
 
         <button type="button" className="btn btn--ghost" onClick={() => session.logout()}>
-          Sign out
+          {t('workspace.signOut')}
         </button>
       </aside>
       <div className="workspace__main">
@@ -147,14 +149,12 @@ export function AppShell() {
 }
 
 export function ConversationHome() {
+  const { t } = useTranslation();
   return (
     <section className="page">
-      <p className="page__eyebrow">Workspace</p>
-      <h1 className="page__title">Select a conversation</h1>
-      <p className="page__lead">
-        Create a conversation with another registered user email, or open one from the list. Send
-        messages over HTTP; live push comes later.
-      </p>
+      <p className="page__eyebrow">{t('workspace.homeEyebrow')}</p>
+      <h1 className="page__title">{t('workspace.homeTitle')}</h1>
+      <p className="page__lead">{t('workspace.homeLead')}</p>
     </section>
   );
 }
@@ -169,6 +169,7 @@ function newClientMsgId(): string {
 export function ConversationRoom() {
   const { id } = useParams();
   const session = useSession();
+  const { t } = useTranslation();
   const [conv, setConv] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -198,7 +199,7 @@ export function ConversationRoom() {
         if (!cancelled) {
           setConv(null);
           setMessages([]);
-          setError(err instanceof ApiError ? err.message : 'Failed to load');
+          setError(err instanceof ApiError ? err.message : t('common.failedToLoad'));
         }
       })
       .finally(() => {
@@ -207,7 +208,7 @@ export function ConversationRoom() {
     return () => {
       cancelled = true;
     };
-  }, [id, session.token]);
+  }, [id, session.token, t]);
 
   // Realtime: merge pushed messages; keep a slow poll as fallback.
   useEffect(() => {
@@ -223,12 +224,12 @@ export function ConversationRoom() {
         });
       },
     });
-    const t = window.setInterval(() => {
+    const timer = window.setInterval(() => {
       void loadMessages().catch(() => undefined);
     }, 15000);
     return () => {
       stop();
-      window.clearInterval(t);
+      window.clearInterval(timer);
     };
   }, [session.token, id, conv, loadMessages]);
 
@@ -249,14 +250,14 @@ export function ConversationRoom() {
         return [...prev, m];
       });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Send failed');
+      setError(err instanceof ApiError ? err.message : t('common.sendFailed'));
     } finally {
       setSending(false);
     }
   }
 
   if (loading) {
-    return <p className="loading">Loading conversation…</p>;
+    return <p className="loading">{t('workspace.loadingConversation')}</p>;
   }
   if (error && !conv) {
     return (
@@ -276,8 +277,8 @@ export function ConversationRoom() {
 
   return (
     <section className="page room">
-      <p className="page__eyebrow">Conversation</p>
-      <h1 className="page__title">{conv.title?.trim() ? conv.title : 'Untitled'}</h1>
+      <p className="page__eyebrow">{t('workspace.roomEyebrow')}</p>
+      <h1 className="page__title">{conv.title?.trim() ? conv.title : t('common.untitled')}</h1>
       <p className="page__meta">
         {(conv.members ?? []).map((m) => m.email).join(' · ') || <code>{conv.id}</code>}
       </p>
@@ -288,14 +289,14 @@ export function ConversationRoom() {
           return (
             <li key={m.id} className={mine ? 'msg msg--mine' : 'msg'}>
               <div className="msg__meta">
-                <span>{mine ? 'You' : memberLabel(m.sender_id)}</span>
+                <span>{mine ? t('common.you') : memberLabel(m.sender_id)}</span>
                 <span className="muted">#{m.seq}</span>
               </div>
               <p className="msg__body">{m.body}</p>
             </li>
           );
         })}
-        {messages.length === 0 && <li className="muted">No messages yet.</li>}
+        {messages.length === 0 && <li className="muted">{t('workspace.noMessages')}</li>}
       </ul>
 
       {error && (
@@ -306,18 +307,18 @@ export function ConversationRoom() {
 
       <form className="composer" onSubmit={onSend}>
         <label className="field__label" htmlFor="msg-body">
-          Message
+          {t('workspace.messageLabel')}
         </label>
         <input
           id="msg-body"
           className="field__input"
           value={text}
           onChange={(ev) => setText(ev.target.value)}
-          placeholder="Write a message"
+          placeholder={t('workspace.messagePlaceholder')}
           autoComplete="off"
         />
         <button className="btn" type="submit" disabled={sending || !text.trim()}>
-          {sending ? 'Sending…' : 'Send'}
+          {sending ? t('workspace.sending') : t('workspace.send')}
         </button>
       </form>
     </section>

@@ -1,0 +1,82 @@
+{
+  "nav": {
+    "primary": "Primary",
+    "home": "Home",
+    "status": "Status",
+    "workspace": "Workspace",
+    "signIn": "Sign in",
+    "register": "Register",
+    "signOut": "Sign out"
+  },
+  "home": {
+    "eyebrow": "Instant messaging",
+    "title": "A quiet place to talk.",
+    "lead": "easy-im is building a focused messaging stack. Milestone one is identity: register, sign in, and keep a stable session. Conversations and realtime delivery come next.",
+    "now": "Now",
+    "nowBody": "Account, session, and API health.",
+    "next": "Next",
+    "nextBody": "Conversations, message history, then live delivery.",
+    "openWorkspace": "Open workspace",
+    "signedInAs": "Signed in as {{email}}",
+    "createAccount": "Create account",
+    "signIn": "Sign in"
+  },
+  "auth": {
+    "eyebrow": "Account",
+    "signInTitle": "Sign in",
+    "registerTitle": "Create account",
+    "switchLoginPrefix": "New here?",
+    "switchLoginLink": "Create an account",
+    "switchRegisterPrefix": "Already have an account?",
+    "switchRegisterLink": "Sign in",
+    "email": "Email",
+    "password": "Password",
+    "working": "Working…",
+    "signIn": "Sign in",
+    "createAccount": "Create account"
+  },
+  "health": {
+    "eyebrow": "System",
+    "title": "API status",
+    "lead": "A live probe of the backend liveness endpoint. No decoration, just the signal.",
+    "endpoint": "Endpoint",
+    "result": "Result",
+    "checking": "Checking…",
+    "startApiBefore": "Start the API with",
+    "startApiAfter": ", then refresh this page."
+  },
+  "workspace": {
+    "conversations": "Conversations",
+    "conversationsAria": "Conversations",
+    "memberEmails": "Member emails",
+    "memberEmailsPlaceholder": "other@example.com",
+    "titleOptional": "Title (optional)",
+    "creating": "Creating…",
+    "newConversation": "New conversation",
+    "noConversations": "No conversations yet.",
+    "loadingSession": "Loading session…",
+    "homeEyebrow": "Workspace",
+    "homeTitle": "Select a conversation",
+    "homeLead": "Create a conversation with another registered user email, or open one from the list. Send messages over HTTP; live push comes later.",
+    "roomEyebrow": "Conversation",
+    "loadingConversation": "Loading conversation…",
+    "noMessages": "No messages yet.",
+    "messageLabel": "Message",
+    "messagePlaceholder": "Write a message",
+    "sending": "Sending…",
+    "send": "Send",
+    "signOut": "Sign out"
+  },
+  "common": {
+    "loading": "Loading…",
+    "you": "You",
+    "untitled": "Untitled",
+    "requestFailed": "Request failed",
+    "failedToLoad": "Failed to load",
+    "createFailed": "Create failed",
+    "sendFailed": "Send failed"
+  },
+  "language": {
+    "switcherAria": "Language"
+  }
+}

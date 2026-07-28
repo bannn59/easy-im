@@ -1,0 +1,82 @@
+{
+  "nav": {
+    "primary": "主导航",
+    "home": "首页",
+    "status": "状态",
+    "workspace": "工作区",
+    "signIn": "登录",
+    "register": "注册",
+    "signOut": "退出"
+  },
+  "home": {
+    "eyebrow": "即时通讯",
+    "title": "安静地聊几句。",
+    "lead": "easy-im 正在打造专注的消息栈。第一阶段是身份：注册、登录，并保持稳定会话。会话与实时投递紧随其后。",
+    "now": "当前",
+    "nowBody": "账号、会话与 API 健康检查。",
+    "next": "下一步",
+    "nextBody": "会话、消息历史，然后实时投递。",
+    "openWorkspace": "打开工作区",
+    "signedInAs": "已登录为 {{email}}",
+    "createAccount": "创建账号",
+    "signIn": "登录"
+  },
+  "auth": {
+    "eyebrow": "账号",
+    "signInTitle": "登录",
+    "registerTitle": "创建账号",
+    "switchLoginPrefix": "还没有账号？",
+    "switchLoginLink": "去注册",
+    "switchRegisterPrefix": "已有账号？",
+    "switchRegisterLink": "去登录",
+    "email": "邮箱",
+    "password": "密码",
+    "working": "处理中…",
+    "signIn": "登录",
+    "createAccount": "创建账号"
+  },
+  "health": {
+    "eyebrow": "系统",
+    "title": "API 状态",
+    "lead": "对后端存活接口的实时探测。没有装饰，只有信号。",
+    "endpoint": "端点",
+    "result": "结果",
+    "checking": "检查中…",
+    "startApiBefore": "请用",
+    "startApiAfter": " 启动 API，然后刷新本页。"
+  },
+  "workspace": {
+    "conversations": "会话",
+    "conversationsAria": "会话列表",
+    "memberEmails": "成员邮箱",
+    "memberEmailsPlaceholder": "other@example.com",
+    "titleOptional": "标题（可选）",
+    "creating": "创建中…",
+    "newConversation": "新建会话",
+    "noConversations": "还没有会话。",
+    "loadingSession": "正在验证登录状态…",
+    "homeEyebrow": "工作区",
+    "homeTitle": "选择一个会话",
+    "homeLead": "用已注册用户的邮箱创建会话，或从列表中打开。消息经 HTTP 发送；实时推送稍后到来。",
+    "roomEyebrow": "会话",
+    "loadingConversation": "正在加载会话…",
+    "noMessages": "还没有消息。",
+    "messageLabel": "消息",
+    "messagePlaceholder": "写一条消息",
+    "sending": "发送中…",
+    "send": "发送",
+    "signOut": "退出"
+  },
+  "common": {
+    "loading": "加载中…",
+    "you": "你",
+    "untitled": "未命名",
+    "requestFailed": "请求失败",
+    "failedToLoad": "加载失败",
+    "createFailed": "创建失败",
+    "sendFailed": "发送失败"
+  },
+  "language": {
+    "switcherAria": "语言"
+  }
+}

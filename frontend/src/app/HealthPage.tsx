@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { fetchHealthz, getApiBase } from '../api/client';
 
 type ProbeState =
@@ -7,6 +8,7 @@ type ProbeState =
   | { kind: 'error'; message: string };
 
 export function HealthPage() {
+  const { t } = useTranslation();
   const [state, setState] = useState<ProbeState>({ kind: 'loading' });
   const base = getApiBase();
 
@@ -30,15 +32,13 @@ export function HealthPage() {
 
   return (
     <section className="page">
-      <p className="page__eyebrow">System</p>
-      <h1 className="page__title">API status</h1>
-      <p className="page__lead">
-        A live probe of the backend liveness endpoint. No decoration, just the signal.
-      </p>
+      <p className="page__eyebrow">{t('health.eyebrow')}</p>
+      <h1 className="page__title">{t('health.title')}</h1>
+      <p className="page__lead">{t('health.lead')}</p>
 
       <div className="panel" aria-live="polite">
         <div className="panel__row">
-          <span className="panel__key">Endpoint</span>
+          <span className="panel__key">{t('health.endpoint')}</span>
           <span className="panel__val">
             <code>
               {base}/healthz
@@ -46,9 +46,9 @@ export function HealthPage() {
           </span>
         </div>
         <div className="panel__row">
-          <span className="panel__key">Result</span>
+          <span className="panel__key">{t('health.result')}</span>
           <span className="panel__val">
-            {state.kind === 'loading' && <span className="loading">Checking…</span>}
+            {state.kind === 'loading' && <span className="loading">{t('health.checking')}</span>}
             {state.kind === 'ok' && (
               <span className="ok">
                 {state.status}
@@ -61,7 +61,8 @@ export function HealthPage() {
 
       {state.kind === 'error' && (
         <p className="page__body">
-          Start the API with <code>cd backend && go run ./cmd/api</code>, then refresh this page.
+          {t('health.startApiBefore')} <code>cd backend && go run ./cmd/api</code>
+          {t('health.startApiAfter')}
         </p>
       )}
     </section>

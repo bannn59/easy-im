@@ -95,6 +95,48 @@ code {
   border-bottom: 1px solid var(--line);
 }
 
+.shell__header-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--space-4);
+}
+
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid var(--line-strong);
+}
+
+.lang-switch__btn {
+  background: transparent;
+  border: none;
+  margin: 0;
+  padding: 0.2rem 0.55rem;
+  font: inherit;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-tertiary);
+  cursor: pointer;
+  line-height: 1.4;
+  transition: color var(--ease), background var(--ease);
+}
+
+.lang-switch__btn:hover {
+  color: var(--ink);
+}
+
+.lang-switch__btn--active {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.lang-switch__btn + .lang-switch__btn {
+  border-left: 1px solid var(--line-strong);
+}
+
 .shell__brand {
   font-size: 0.8125rem;
   font-weight: 500;
@@ -522,6 +564,10 @@ code {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-3);
+  }
+
+  .shell__header-end {
+    justify-content: flex-start;
   }
 
   .shell__nav {

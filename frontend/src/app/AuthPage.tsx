@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ApiError } from '../api/http';
 import { useSession } from './Session';
 
@@ -8,6 +9,7 @@ type Mode = 'login' | 'register';
 export function AuthPage({ mode }: { mode: Mode }) {
   const session = useSession();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +34,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError('Request failed');
+        setError(t('common.requestFailed'));
       }
     } finally {
       setSubmitting(false);
@@ -43,16 +45,18 @@ export function AuthPage({ mode }: { mode: Mode }) {
 
   return (
     <section className="page auth">
-      <p className="page__eyebrow">Account</p>
-      <h1 className="page__title">{isLogin ? 'Sign in' : 'Create account'}</h1>
+      <p className="page__eyebrow">{t('auth.eyebrow')}</p>
+      <h1 className="page__title">{isLogin ? t('auth.signInTitle') : t('auth.registerTitle')}</h1>
       <p className="auth__switch">
         {isLogin ? (
           <>
-            New here? <Link to="/register">Create an account</Link>
+            {t('auth.switchLoginPrefix')}{' '}
+            <Link to="/register">{t('auth.switchLoginLink')}</Link>
           </>
         ) : (
           <>
-            Already have an account? <Link to="/login">Sign in</Link>
+            {t('auth.switchRegisterPrefix')}{' '}
+            <Link to="/login">{t('auth.switchRegisterLink')}</Link>
           </>
         )}
       </p>
@@ -60,7 +64,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
       <form className="auth__form" onSubmit={onSubmit} noValidate>
         <div className="field">
           <label className="field__label" htmlFor="auth-email">
-            Email
+            {t('auth.email')}
           </label>
           <input
             id="auth-email"
@@ -74,7 +78,7 @@ export function AuthPage({ mode }: { mode: Mode }) {
         </div>
         <div className="field">
           <label className="field__label" htmlFor="auth-password">
-            Password
+            {t('auth.password')}
           </label>
           <input
             id="auth-password"
@@ -94,7 +98,11 @@ export function AuthPage({ mode }: { mode: Mode }) {
         )}
         <div className="page__actions">
           <button className="btn" type="submit" disabled={submitting}>
-            {submitting ? 'Working…' : isLogin ? 'Sign in' : 'Create account'}
+            {submitting
+              ? t('auth.working')
+              : isLogin
+                ? t('auth.signIn')
+                : t('auth.createAccount')}
           </button>
         </div>
       </form>

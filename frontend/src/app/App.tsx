@@ -1,4 +1,6 @@
 import { BrowserRouter, NavLink, Route, Routes, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { LanguageSwitcher } from '../i18n/LanguageSwitcher';
 import { AuthPage } from './AuthPage';
 import { AppShell, ConversationHome, ConversationRoom } from './AppShell';
 import { HealthPage } from './HealthPage';
@@ -7,30 +9,34 @@ import { SessionProvider, useSession } from './Session';
 
 function Header() {
   const session = useSession();
+  const { t } = useTranslation();
   return (
     <header className="shell__header">
       <Link to="/" className="shell__brand">
         easy-im
       </Link>
-      <nav className="shell__nav" aria-label="Primary">
-        <NavLink to="/" end>
-          Home
-        </NavLink>
-        <NavLink to="/health">Status</NavLink>
-        {session.user ? (
-          <>
-            <NavLink to="/app">Workspace</NavLink>
-            <button type="button" className="linkish" onClick={() => session.logout()}>
-              Sign out
-            </button>
-          </>
-        ) : (
-          <>
-            <NavLink to="/login">Sign in</NavLink>
-            <NavLink to="/register">Register</NavLink>
-          </>
-        )}
-      </nav>
+      <div className="shell__header-end">
+        <nav className="shell__nav" aria-label={t('nav.primary')}>
+          <NavLink to="/" end>
+            {t('nav.home')}
+          </NavLink>
+          <NavLink to="/health">{t('nav.status')}</NavLink>
+          {session.user ? (
+            <>
+              <NavLink to="/app">{t('nav.workspace')}</NavLink>
+              <button type="button" className="linkish" onClick={() => session.logout()}>
+                {t('nav.signOut')}
+              </button>
+            </>
+          ) : (
+            <>
+              <NavLink to="/login">{t('nav.signIn')}</NavLink>
+              <NavLink to="/register">{t('nav.register')}</NavLink>
+            </>
+          )}
+        </nav>
+        <LanguageSwitcher />
+      </div>
     </header>
   );
 }

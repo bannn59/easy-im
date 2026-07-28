@@ -1,25 +1,24 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useSession } from './Session';
 
 export function HomePage() {
   const session = useSession();
+  const { t } = useTranslation();
   return (
     <section className="page">
-      <p className="page__eyebrow">Instant messaging</p>
-      <h1 className="page__title">A quiet place to talk.</h1>
-      <p className="page__lead">
-        easy-im is building a focused messaging stack. Milestone one is identity: register, sign
-        in, and keep a stable session. Conversations and realtime delivery come next.
-      </p>
+      <p className="page__eyebrow">{t('home.eyebrow')}</p>
+      <h1 className="page__title">{t('home.title')}</h1>
+      <p className="page__lead">{t('home.lead')}</p>
 
       <ul className="page__list">
         <li>
-          <strong>Now</strong>
-          Account, session, and API health.
+          <strong>{t('home.now')}</strong>
+          {t('home.nowBody')}
         </li>
         <li>
-          <strong>Next</strong>
-          Conversations, message history, then live delivery.
+          <strong>{t('home.next')}</strong>
+          {t('home.nextBody')}
         </li>
       </ul>
 
@@ -27,17 +26,17 @@ export function HomePage() {
         {session.user ? (
           <>
             <Link className="btn" to="/app">
-              Open workspace
+              {t('home.openWorkspace')}
             </Link>
-            <span className="muted">Signed in as {session.user.email}</span>
+            <span className="muted">{t('home.signedInAs', { email: session.user.email })}</span>
           </>
         ) : (
           <>
             <Link className="btn" to="/register">
-              Create account
+              {t('home.createAccount')}
             </Link>
             <Link className="btn btn--ghost" to="/login">
-              Sign in
+              {t('home.signIn')}
             </Link>
           </>
         )}
