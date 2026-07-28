@@ -1,0 +1,52 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+body {
+  margin: 0;
+}
+
+.shell {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.shell__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #8884;
+  padding-bottom: 0.75rem;
+}
+
+.shell__nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.shell__nav a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.shell__nav a.active {
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+code {
+  font-size: 0.9em;
+}
+
+.ok {
+  color: #0a7;
+}
+
+.err {
+  color: #c33;
+}
