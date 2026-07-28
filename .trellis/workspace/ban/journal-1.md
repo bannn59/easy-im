@@ -380,3 +380,25 @@ Added English and Simplified Chinese i18n to the React SPA with i18next, Header 
 ### Status
 
 [OK] **Completed**
+
+
+## Session 12: WeChat-like chat UI: layout, bubbles, emoji, reply
+
+**Date**: 2026-07-28
+**Task**: WeChat-like chat UI: layout, bubbles, emoji, reply
+**Branch**: `main`
+
+### Summary
+
+Shipped mature text chat UX: backend reply_to_message_id end-to-end (migration, DTO, WS parity, tests); frontend features/chat with three-band room, greyscale bubbles, optimistic send, emoji toolbar, structured quote/reply; DM title uses peer name and hides per-bubble labels (group only); specs updated for chat ownership, bubble DOM, and message.reply_to code-spec.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e8f869b` | (see git log) |
+| `91667b0` | (see git log) |
+
+### Status
+
+[OK] **Completed**
