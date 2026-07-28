@@ -1,0 +1,5 @@
+{"file": ".trellis/tasks/07-28-p0-db-errors/prd.md", "reason": "Acceptance criteria"}
+{"file": ".trellis/tasks/07-28-p0-db-errors/design.md", "reason": "goose/pgx/apperr decisions"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify mapping and no leak"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Verify migrations location"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify boundaries"}

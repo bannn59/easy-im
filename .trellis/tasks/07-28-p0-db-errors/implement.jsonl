@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Postgres, migrations, naming"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Error JSON and HTTP mapping"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "request_id field"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "internal package layout"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "context, tests, no handler SQL"}
+{"file": ".trellis/tasks/archive/2026-07/07-28-feature-dev-roadmap/research/roadmap.md", "reason": "T1 scope and serial T2 dependency"}
+{"file": "backend/README.md", "reason": "Current run docs to extend"}
