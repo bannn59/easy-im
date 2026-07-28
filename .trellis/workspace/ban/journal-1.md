@@ -357,3 +357,26 @@ Completed Trellis roadmap mainline T1-T6 / M0-M4 with verification. Feature map 
 ### Next Steps
 
 - Optional P5 receipts/settings or production hardening
+
+
+## Session 11: Frontend i18n en/zh-CN
+
+**Date**: 2026-07-28
+**Task**: Frontend i18n en/zh-CN
+**Branch**: `main`
+
+### Summary
+
+Added English and Simplified Chinese i18n to the React SPA with i18next, Header language switcher, browser-aware defaults, and frontend spec conventions. typecheck/build green.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `974638b` | (see git log) |
+| `9930c01` | (see git log) |
+| `613edc7` | (see git log) |
+
+### Status
+
+[OK] **Completed**
