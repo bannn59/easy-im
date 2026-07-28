@@ -447,3 +447,26 @@ Shipped sidebar WeChat-surface list: denormalized conversation last_message on s
 ### Status
 
 [OK] **Completed**
+
+
+## Session 15: 好友驱动开聊（替代邮箱建会话）
+
+**Date**: 2026-07-29
+**Task**: 好友驱动开聊（替代邮箱建会话）
+**Branch**: `main`
+
+### Summary
+
+好友 get-or-create 1:1：POST /v1/friends/{id}/conversation；移除 member_emails 建会话与 AppShell 邮箱表单；Friends 页 Message 进房；FindDirectBetween 按 last_message_at/created_at 复用；spec 记录 OpenDirect；历史会话发消息仍不校验好友。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `88c4084` | (see git log) |
+| `2ef1a01` | (see git log) |
+| `1fcd66e` | (see git log) |
+
+### Status
+
+[OK] **Completed**
