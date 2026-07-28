@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Verify scaffold paths and dependency direction"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify no handler→repo skip, tests/build exist"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "Verify app/api/realtime/features layout"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Verify no raw WebSocket in features; build passes"}
+{"file": ".trellis/tasks/07-28-monorepo-scaffold/prd.md", "reason": "Acceptance criteria"}
+{"file": ".trellis/tasks/07-28-monorepo-scaffold/design.md", "reason": "Design constraints for review"}

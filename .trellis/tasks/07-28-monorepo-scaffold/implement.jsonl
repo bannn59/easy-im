@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Target backend layout and package boundaries for scaffold"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Context first-param, testing bar, forbidden patterns"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Optional slog fields if any logging is added at startup"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "Target frontend feature/api/realtime layout"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "No raw WS in components; strict TS expectations"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Keep health-only boundary clean; no fake dual-write"}
