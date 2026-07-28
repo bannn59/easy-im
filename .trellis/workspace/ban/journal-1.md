@@ -290,3 +290,37 @@ bf8705c chore: record journal` | (see git log) |
 ### Next Steps
 
 - T5 single-node WS gateway (M4)
+
+
+## Session 9: T5 websocket realtime M4
+
+**Date**: 2026-07-28
+**Task**: T5 websocket realtime M4
+**Branch**: `main`
+
+### Summary
+
+M4: single-node WS push message.created; FE realtime merge. Next optional P5 polish and feature map refresh.
+
+### Main Changes
+
+- hub + /v1/ws + broadcast on send
+- frontend connectRealtime
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `babd85c` | (see git log) |
+
+### Testing
+
+- [OK] go test; npm build; WS_OK smoke
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- T6 refresh feature map; optional P5 receipts/settings

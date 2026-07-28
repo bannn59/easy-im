@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 8
+- **Total Sessions**: 9
 - **Last Active**: 2026-07-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~292 | Active |
+| `journal-1.md` | ~326 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 9 | 2026-07-28 | T5 websocket realtime M4 | `babd85c` | `main` |
 | 8 | 2026-07-28 | T4 HTTP messages M3 | `b26a991`
 `97db6ca` chore(task): archive 07-28-t4-http-messages
 `b26a991` feat: HTTP messages with seq and client_msg_id idempotency (M3)
