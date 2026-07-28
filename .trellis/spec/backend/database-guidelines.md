@@ -88,12 +88,26 @@ Partial index: `idx_messages_reply_to` on `reply_to_message_id` where not null.
 
 **Do not** encode reply/quote as a body text prefix. Persist the FK; API/WS embed a truncated preview object (see realtime-messaging scenario `message.reply_to`).
 
+### Conversation list head + self unread (landed)
+
+| Store | Columns / rule |
+|-------|----------------|
+| `conversations` | `last_message_at`, `last_message_seq`, `last_message_preview` (≤120 runes), `last_message_sender_id` — updated in the **same tx** as message insert |
+| `conversation_members` | `last_read_seq` (default 0) |
+| Unread | Count messages with `seq > last_read_seq` **and** `sender_id <> viewer` — not bare seq diff |
+| Mark read | `POST /v1/conversations/{id}/read`; open-room calls it; clamp seq to head |
+| Self send | `GREATEST(last_read_seq, msg.seq)` for sender in insert tx |
+| List order | `ORDER BY COALESCE(last_message_at, updated_at) DESC` |
+| Out of scope | Peer read receipts / read WS events |
+
+List DTO includes `last_message`, `unread_count`, optional `member_count` + `last_message.sender_email` for group preview prefixes.
+
 ### Transactions
 
 Use transactions for multi-table writes that must commit together, e.g.:
 
 - create conversation + owner membership
-- insert message + bump `next_seq` / `updated_at` (current `MessageRepo.Insert`)
+- insert message + bump `next_seq` + **update conversation last_*** + **advance sender last_read_seq**
 
 Keep transactions short. Do **not** hold a DB transaction open while waiting on Redis, MQ, or WS write.
 
@@ -102,6 +116,8 @@ Keep transactions short. Do **not** hold a DB transaction open while waiting on 
 tx := begin
 alloc seq + touch conversation
 insert message (incl. reply_to_message_id)
+update conversation last_message_* 
+advance sender last_read_seq
 commit
 publish / hub push          // after commit
 ```

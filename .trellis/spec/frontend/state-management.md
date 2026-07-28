@@ -70,6 +70,14 @@ Pick **one owner**.
 - `stickToBottom` ref: force scroll on self-send and initial load; on WS only if distance-to-bottom < threshold (~80px).
 - Do not scroll on every parent render.
 
+### Conversation sidebar list
+
+- Owner: `AppShell` `items` state from `GET /v1/conversations` (`last_message`, `unread_count`, `member_count`).
+- Workspace-level `connectRealtime`: on `message.created`, patch matching row preview/time, reorder by activity; if `sender ≠ me` and route is not that room → `unread_count + 1`; if in that room → keep 0.
+- Entering `/app/c/:id`: optimistically zero badge; `ConversationRoom` calls `markConversationRead` after successful load.
+- Preview: self last → i18n `youPreview`; group (`member_count > 2`) → `shortName(sender_email): body`; DM peer body only.
+- Do **not** treat sidebar unread as peer read receipts.
+
 ---
 
 ## Session & security
