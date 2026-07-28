@@ -1,0 +1,43 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Dependencies / build (future monorepo)
+node_modules/
+dist/
+build/
+coverage/
+*.exe
+*.test
+bin/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Go
+backend/vendor/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Trellis local-only (also covered under .trellis/.gitignore for nested paths)
+.trellis/.developer
+.trellis/.current-task
+.trellis/.runtime/
+.trellis/.ralph-state.json
+.trellis/.agents/
+.trellis/.agent-log
+.trellis/.session-id
+.trellis/.plan-log
+.trellis/**/__pycache__/
+.trellis/**/*.pyc
+.trellis/*.tmp
+.trellis/.backup-*
+.trellis/**/*.new
