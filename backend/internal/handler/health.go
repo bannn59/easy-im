@@ -17,5 +17,9 @@ func Healthz(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(HealthResponse{Status: "ok"})
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(HealthResponse{Status: "ok"}); err != nil {
+		// Headers may already be flushed; disconnects are the usual cause.
+		return
+	}
 }
