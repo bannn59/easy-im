@@ -142,3 +142,41 @@ Documented easy-im phased roadmap from feature map + scaffold: P0–P6, M0–M5,
 
 - Start T1: Postgres migrations + API error middleware
 - Or T2: register/login + /me + login page (M1)
+
+
+## Session 5: T1 Postgres migrations and API errors
+
+**Date**: 2026-07-28
+**Task**: T1 Postgres migrations and API errors
+**Branch**: `main`
+
+### Summary
+
+Landed T1/P0: pgx pool, goose migrations with users table, apperr + request_id error JSON, /readyz, compose on 5433. Archived p0-db-errors. Ready for serial T2 auth.
+
+### Main Changes
+
+- backend: apperr, db pool, httpx middleware, migrate cmd, users migration
+- docker-compose Postgres 16 on host 5433; README runbooks
+- spec bootstrap notes for database and error-handling
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `26389d9` | (see git log) |
+| `1bb5224` | (see git log) |
+| `62c05c2` | (see git log) |
+| `81cf1e2` | (see git log) |
+
+### Testing
+
+- [OK] go test ./...; migrate up; healthz/readyz smoke
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- T2: register/login + /me + frontend login (M1)
