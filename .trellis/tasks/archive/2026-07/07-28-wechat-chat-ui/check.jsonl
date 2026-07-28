@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "lint/type/build expectations for UI changes"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "bubble/composer structure and a11y regression"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "feature folder boundaries after extraction"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Go test and service quality bar"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "reply validation error shapes"}
+{"file": ".trellis/spec/backend/realtime-messaging.md", "reason": "WS payload parity with HTTP DTO"}
+{"file": ".trellis/tasks/07-28-wechat-chat-ui/prd.md", "reason": "acceptance criteria AC1–AC9"}
+{"file": ".trellis/tasks/07-28-wechat-chat-ui/design.md", "reason": "contract and scroll/optimistic behavior checks"}

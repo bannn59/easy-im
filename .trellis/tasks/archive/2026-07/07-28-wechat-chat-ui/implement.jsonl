@@ -1,0 +1,9 @@
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "features/chat extraction ownership and import rules"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "MessageBubble/Composer layering, a11y, list keys"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "composer draft, local UI state patterns"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "frontend quality bar before done"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "migration and schema change conventions"}
+{"file": ".trellis/spec/backend/realtime-messaging.md", "reason": "WS vs HTTP and event payload consistency"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Invalid vs NotFound for bad reply_to"}
+{"file": ".trellis/tasks/07-28-wechat-chat-ui/design.md", "reason": "reply_to contract, optimistic send, module layout"}
+{"file": ".trellis/tasks/07-28-wechat-chat-ui/prd.md", "reason": "AC and scope boundaries"}
