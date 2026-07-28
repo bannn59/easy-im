@@ -6,7 +6,8 @@
 
 ## Bootstrap status
 
-Intended error model for API + gateway. Adjust examples to match real packages once code exists.
+Landed in code: `internal/apperr` + `handler.WriteError` / `RequestID` / `Recover`.
+HTTP mapping and JSON shape match the sections below; adjust codes as product features grow.
 
 ---
 

@@ -6,7 +6,9 @@
 
 ## Bootstrap status
 
-Assumptions for first implementation. Default primary store: **PostgreSQL**. MySQL is allowed if the team standardizes on it; keep dialect differences isolated in `internal/repo`.
+Landed: Postgres via **pgx** pool (`internal/db`), **goose** SQL under `backend/migrations/`,
+`cmd/migrate`, and local `docker-compose.yml` (host port **5433**). First migration creates `users` for T2.
+Query/repo patterns below remain targets until services exist.
 
 ---
 
