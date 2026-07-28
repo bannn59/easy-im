@@ -324,3 +324,36 @@ M4: single-node WS push message.created; FE realtime merge. Next optional P5 pol
 ### Next Steps
 
 - T6 refresh feature map; optional P5 receipts/settings
+
+
+## Session 10: Roadmap mainline complete M0-M4
+
+**Date**: 2026-07-28
+**Task**: Roadmap mainline complete M0-M4
+**Branch**: `main`
+
+### Summary
+
+Completed Trellis roadmap mainline T1-T6 / M0-M4 with verification. Feature map refreshed. P5/P6 optional remaining.
+
+### Main Changes
+
+- T3 conversations M2, T4 messages M3, T5 WS M4, T6 map
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d87a97b` | (see git log) |
+
+### Testing
+
+- [OK] go test; npm build; FINAL_OK health/me/msg/list; WS_OK earlier
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- Optional P5 receipts/settings or production hardening
