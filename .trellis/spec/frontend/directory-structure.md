@@ -6,8 +6,8 @@
 
 ## Bootstrap status
 
-Scaffold landed: Vite + React + TS under `frontend/` with `src/app`, `api`, `realtime` (placeholder), `features`, `shared`, `styles`.  
-Product features (auth/chat/…) remain empty targets.
+Scaffold landed: Vite + React + TS under `frontend/` with `src/app`, `api`, `realtime`, `i18n`, `features`, `shared`, `styles`.  
+Early product UI still lives mainly under `src/app/`; feature folders remain targets for later extraction.
 
 ---
 
@@ -19,8 +19,15 @@ frontend/
 ├── vite.config.ts
 ├── index.html
 ├── src/
-│   ├── main.tsx
-│   ├── app/                    # shell: router, providers, layouts
+│   ├── main.tsx                # import './i18n' before App
+│   ├── app/                    # shell: router, providers, layouts, early screens
+│   ├── i18n/                   # i18next init, locales, LanguageSwitcher
+│   │   ├── index.ts
+│   │   ├── resolveLanguage.ts
+│   │   ├── LanguageSwitcher.tsx
+│   │   └── locales/
+│   │       ├── en.json
+│   │       └── zh-CN.json
 │   ├── features/
 │   │   ├── auth/
 │   │   ├── conversation/       # chat list, create/join
@@ -38,7 +45,7 @@ frontend/
 └── tests/                      # optional e2e / playwright
 ```
 
-Feature folders own their UI, feature hooks, and local types. They import `api/` and `realtime/`, not the reverse.
+Feature folders own their UI, feature hooks, and local types. They import `api/` and `realtime/`, not the reverse. `i18n/` is cross-cutting infrastructure (like `api/` / `realtime/`), not a feature.
 
 ---
 
@@ -49,6 +56,7 @@ Feature folders own their UI, feature hooks, and local types. They import `api/`
 | `features/*` | Screens and feature-specific components | Raw `fetch` / raw `WebSocket` |
 | `api/` | Base URL, auth header injection, REST calls, Query key factories | React components |
 | `realtime/` | Connection lifecycle, encode/decode, subscribe API | Message business rules duplicated from server |
+| `i18n/` | i18n init, locale JSON, language resolve/persist, language switcher | Feature business logic, API calls |
 | `shared/ui` | Reusable presentational widgets | Feature data fetching |
 | `app/` | Router, auth gate, provider tree | Deep feature UI |
 
@@ -90,12 +98,23 @@ Do not hand-maintain divergent `interface Message` in three feature files.
 
 ---
 
+## i18n conventions
+
+- **Stack**: `i18next` + `react-i18next`; resources bundled (no HTTP backend).
+- **Locales**: `en`, `zh-CN`. Keys in `locales/en.json` and `locales/zh-CN.json` must stay isomorphic.
+- **Resolve order** (`resolveLanguage`): `localStorage['easyim_lng']` if `en`|`zh-CN` → else navigator language starting with `zh` → `zh-CN` → else `en`.
+- **Change language** via `setAppLanguage` (or equivalent): update i18n, write `easyim_lng`, set `document.documentElement.lang`.
+- **UI strings**: use `useTranslation` / `t('…')`. Do not hardcode user-visible English in components.
+- **Do not translate**: message bodies, conversation titles, emails, or raw `ApiError.message` from the server. Local fallback strings (e.g. network failure copy) go through `t()`.
+
 ## Anti-patterns
 
 - `components/` mega-folder with no feature boundaries.
 - Importing from `features/a` into `features/b` freely (extract to `shared` or lift API).
 - Placing WS reconnection logic inside a single chat component.
 - Duplicating backend URL and token logic per feature.
+- Hardcoding UI copy in components after i18n landed.
+- Wrapping server `ApiError.message` with `t()` (server text is not a catalog key).
 
 ---
 

@@ -6,20 +6,19 @@
 
 ## Bootstrap status
 
-> **These specs are bootstrap assumptions, not evidence from existing product code.**
->
-> The repository currently has no `frontend/` application source. Rules below describe
-> the intended first-pass SPA conventions for a monorepo IM product. Re-bootstrap or
-> edit these files when real code lands so examples point at actual modules and tests.
+> Scaffold and early product UI live under `frontend/`. Several rows below still describe
+> intended conventions (e.g. TanStack Query) that are not fully adopted yet — prefer the
+> code and topic guides when they disagree with bootstrap assumptions.
 
 | Assumption | Choice |
 |------------|--------|
 | UI library | React 18+ with TypeScript |
-| Bundler / app shell | Vite (or equivalent) under `frontend/` |
-| Server state | TanStack Query (React Query) for HTTP |
-| Realtime | Dedicated WebSocket client module (not ad-hoc `new WebSocket` in components) |
+| Bundler / app shell | Vite under `frontend/` |
+| Server state | TanStack Query (React Query) for HTTP (not fully wired yet) |
+| Realtime | Dedicated WebSocket client module under `src/realtime/` |
 | Client state | React state + Context for session/UI; avoid a global store until proven necessary |
-| Styling | TBD by first UI PR — document the choice here when picked (CSS modules / Tailwind / etc.) |
+| Styling | Global CSS in `src/styles/index.css` (minimal tokens; no CSS modules/Tailwind yet) |
+| UI i18n | `i18next` + `react-i18next`; locales `en` / `zh-CN` under `src/i18n/` |
 
 ---
 
@@ -42,4 +41,4 @@
 2. For chat list / message pane work, also read **State Management** and **Hook Guidelines**.
 3. Keep protocol types aligned with backend contracts (`packages/` OpenAPI/proto or shared schemas).
 
-**Language**: Spec documents are written in **English**. UI strings may be localized later.
+**Language**: Spec documents are written in **English**. Product UI strings use i18n (`en` / `zh-CN`); see [Directory Structure](./directory-structure.md) (`src/i18n/`) and [Quality Guidelines](./quality-guidelines.md).

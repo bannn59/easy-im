@@ -17,7 +17,8 @@ Apply once `frontend/` is scaffolded. Add concrete CI commands to this file when
 3. Feature-scoped folders for chat surfaces.
 4. Keys on message lists use stable server/client ids.
 5. WS subscribe cleanup on unmount / conversation change.
-6. User-visible errors mapped from stable error codes.
+6. User-visible errors mapped from stable error codes when available.
+7. User-visible UI copy goes through i18n (`t()`); keep `en.json` / `zh-CN.json` keys isomorphic.
 
 ---
 
@@ -32,6 +33,8 @@ Apply once `frontend/` is scaffolded. Add concrete CI commands to this file when
 | Silent `catch {}` | Lost failures |
 | Committing `.env` secrets | Security |
 | Disabling TypeScript checks to ship | Contract drift with Go backend |
+| Hardcoded user-visible UI strings | Breaks en/zh-CN; use `src/i18n` catalogs |
+| `t(apiError.message)` | Server messages are not catalog keys; show raw `ApiError.message` |
 
 ---
 
@@ -67,7 +70,8 @@ Enable eslint rules for hooks deps and `no-explicit-any` early.
 - [ ] Message cache merge de-dupes by id / `client_msg_id`?
 - [ ] Conversation change resets or keys cache correctly?
 - [ ] Error codes handled, not only toast(err.message)?
-- [ ] a11y for new interactive controls?
+- [ ] New UI copy has en + zh-CN keys (isomorphic)? Server errors left raw?
+- [ ] a11y for new interactive controls (incl. language switcher if touched)?
 - [ ] Types aligned with backend contract change?
 - [ ] Specs updated if a new convention appeared?
 
