@@ -468,6 +468,51 @@ code {
   min-width: 0;
 }
 
+.msg-list {
+  list-style: none;
+  margin: var(--space-5) 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+  max-height: 28rem;
+  overflow-y: auto;
+}
+
+.msg {
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.msg__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-tertiary);
+  margin-bottom: var(--space-1);
+}
+
+.msg--mine .msg__body {
+  color: var(--ink);
+}
+
+.msg__body {
+  margin: 0;
+  color: var(--ink-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
 @media (max-width: 640px) {
   .shell {
     padding: var(--space-4) var(--space-4) var(--space-6);

@@ -24,8 +24,11 @@ type APIOptions struct {
 func NewAPIHandler(opts APIOptions) http.Handler {
 	var auth *service.AuthService
 	var conv *service.ConversationService
+	var msg *service.MessageService
 	if opts.Pool != nil && opts.AuthJWTSecret != "" {
 		users := repo.NewUserRepo(opts.Pool)
+		convs := repo.NewConversationRepo(opts.Pool)
+		messages := repo.NewMessageRepo(opts.Pool)
 		auth = service.NewAuthService(
 			users,
 			service.AuthConfig{
@@ -33,12 +36,14 @@ func NewAPIHandler(opts APIOptions) http.Handler {
 				TokenTTL:  opts.AuthTokenTTL,
 			},
 		)
-		conv = service.NewConversationService(repo.NewConversationRepo(opts.Pool), users)
+		conv = service.NewConversationService(convs, users)
+		msg = service.NewMessageService(messages, convs)
 	}
 	return handler.NewMux(handler.Deps{
 		Pool: opts.Pool,
 		Log:  opts.Log,
 		Auth: auth,
 		Conv: conv,
+		Msg:  msg,
 	})
 }

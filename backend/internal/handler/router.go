@@ -17,6 +17,7 @@ type Deps struct {
 	Log  *slog.Logger
 	Auth *service.AuthService
 	Conv *service.ConversationService
+	Msg  *service.MessageService
 }
 
 // NewMux registers HTTP routes and standard middleware for the API process.
@@ -35,20 +36,22 @@ func NewMux(deps Deps) http.Handler {
 	mux.HandleFunc("/v1/me", auth.Me)
 
 	conv := &ConversationHandler{Conv: deps.Conv}
+	msg := &MessageHandler{Msg: deps.Msg}
 	require := RequireUser(deps.Auth)
+
 	mux.Handle("POST /v1/conversations", require(http.HandlerFunc(conv.Create)))
 	mux.Handle("GET /v1/conversations", require(http.HandlerFunc(conv.List)))
 	mux.Handle("GET /v1/conversations/{id}", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Go 1.22+ path value
 		id := r.PathValue("id")
-		if id == "" {
-			WriteError(w, r, apperr.NotFound("conversation not found"))
-			return
-		}
-		// reuse Get by rewriting path for existing handler logic
 		r2 := r.Clone(r.Context())
 		r2.URL.Path = "/v1/conversations/" + id
 		conv.Get(w, r2)
+	})))
+	mux.Handle("POST /v1/conversations/{id}/messages", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		msg.Send(w, r, r.PathValue("id"))
+	})))
+	mux.Handle("GET /v1/conversations/{id}/messages", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		msg.List(w, r, r.PathValue("id"))
 	})))
 
 	var h http.Handler = mux
