@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 12
+- **Total Sessions**: 13
 - **Last Active**: 2026-07-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~404 | Active |
+| `journal-1.md` | ~426 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 13 | 2026-07-28 | Conversation list preview and self-only unread | `8f50d35`, `2949dde` | `main` |
 | 12 | 2026-07-28 | WeChat-like chat UI: layout, bubbles, emoji, reply | `e8f869b`, `91667b0` | `main` |
 | 11 | 2026-07-28 | Frontend i18n en/zh-CN | `974638b`, `9930c01`, `613edc7` | `main` |
 | 10 | 2026-07-28 | Roadmap mainline complete M0-M4 | `d87a97b` | `main` |

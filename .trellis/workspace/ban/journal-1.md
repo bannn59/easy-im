@@ -402,3 +402,25 @@ Shipped mature text chat UX: backend reply_to_message_id end-to-end (migration, 
 ### Status
 
 [OK] **Completed**
+
+
+## Session 13: Conversation list preview and self-only unread
+
+**Date**: 2026-07-28
+**Task**: Conversation list preview and self-only unread
+**Branch**: `main`
+
+### Summary
+
+Shipped sidebar WeChat-surface list: denormalized conversation last_message on send, members.last_read_seq, peer-only unread_count, POST mark-read on room open, AppShell message.created list patch; group preview sender prefix; specs for list head/unread. Also earlier this session: wechat-chat-ui (bubbles/reply_to) archived separately.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8f50d35` | (see git log) |
+| `2949dde` | (see git log) |
+
+### Status
+
+[OK] **Completed**
