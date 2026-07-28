@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Go test expectations"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "migration and list query quality"}
+{"file": ".trellis/spec/backend/realtime-messaging.md", "reason": "WS/list parity checks"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "frontend build/type bar"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "unread/list single-owner checks"}
+{"file": ".trellis/tasks/07-28-conv-list-preview-unread/prd.md", "reason": "AC1–AC8"}
+{"file": ".trellis/tasks/07-28-conv-list-preview-unread/design.md", "reason": "mark-read and patch behavior verification"}

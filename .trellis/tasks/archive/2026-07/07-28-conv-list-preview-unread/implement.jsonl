@@ -1,0 +1,9 @@
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "conversation head denorm + member last_read_seq migration patterns"}
+{"file": ".trellis/spec/backend/realtime-messaging.md", "reason": "message.created reuse for list patch; no peer read events"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "mark-read ACL and invalid seq mapping"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "AppShell vs features/chat ownership for list realtime"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "list projection, unread local patch, scroll/room boundary"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "sidebar row UI, no WeChat green badges abuse"}
+{"file": ".trellis/tasks/07-28-conv-list-preview-unread/design.md", "reason": "DTO, tx, unread semantics, WS patch"}
+{"file": ".trellis/tasks/07-28-conv-list-preview-unread/prd.md", "reason": "AC and grill decisions"}
+{"file": ".trellis/tasks/archive/2026-07/07-28-t6-feature-map-refresh/research/notes/remaining.md", "reason": "map position vs P5.a out of scope"}
