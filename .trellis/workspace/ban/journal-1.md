@@ -424,3 +424,26 @@ Shipped sidebar WeChat-surface list: denormalized conversation last_message on s
 ### Status
 
 [OK] **Completed**
+
+
+## Session 14: 好友关系 MVP（请求/同意/列表）
+
+**Date**: 2026-07-29
+**Task**: 好友关系 MVP（请求/同意/列表）
+**Branch**: `main`
+
+### Summary
+
+落地 email 好友请求→同意/拒绝与 friendships 无向边；/v1/friends API + 最小 Friends 页；spec 记录 schema 与页面状态；父任务 friends-chat 与子任务 open-chat 规划保留。未改 member_emails 建会话。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bce98da` | (see git log) |
+| `1cd9637` | (see git log) |
+| `4149fe4` | (see git log) |
+
+### Status
+
+[OK] **Completed**
