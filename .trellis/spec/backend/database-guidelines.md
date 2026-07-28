@@ -7,8 +7,11 @@
 ## Bootstrap status
 
 Landed: Postgres via **pgx** pool (`internal/db`), **goose** SQL under `backend/migrations/`,
-`cmd/migrate`, and local `docker-compose.yml` (host port **5433**). First migration creates `users` for T2.
-Query/repo patterns below remain targets until services exist.
+`cmd/migrate`, and local `docker-compose.yml` (host port **5433**).
+
+Schema so far: `users`, `conversations`, `conversation_members`, `messages` (with `next_seq` on conversations), and optional `messages.reply_to_message_id`.
+
+Repo pattern: `internal/repo` with explicit SQL; domain types in `internal/domain`.
 
 ---
 
@@ -66,25 +69,41 @@ API returns an opaque cursor derived from the last row, not raw SQL offsets.
 ### Batch over N+1
 
 - Load membership, users, and receipts in batches.
+- **Message list + reply previews**: after listing messages, collect distinct non-null `reply_to_message_id` values and load with `FindByIDs` / `id = ANY($1)` — never per-row `FindByID` in the list path.
 - For gateway fan-out, resolve online targets via Redis/presence service in bulk, not per recipient query in a loop without pipelining.
+
+### Messages table (landed)
+
+| Column | Notes |
+|--------|-------|
+| `id` | UUID, app-assigned |
+| `conversation_id`, `sender_id` | FKs |
+| `body` | plain text (emoji are characters in body) |
+| `client_msg_id` | unique with `sender_id` for idempotent send |
+| `seq` | per-conversation monotonic; allocated with `conversations.next_seq` in the insert transaction |
+| `created_at` | timestamptz |
+| `reply_to_message_id` | **nullable** UUID FK → `messages(id)` **ON DELETE SET NULL** |
+
+Partial index: `idx_messages_reply_to` on `reply_to_message_id` where not null.
+
+**Do not** encode reply/quote as a body text prefix. Persist the FK; API/WS embed a truncated preview object (see realtime-messaging scenario `message.reply_to`).
 
 ### Transactions
 
 Use transactions for multi-table writes that must commit together, e.g.:
 
 - create conversation + owner membership
-- insert message + update conversation last_message metadata
+- insert message + bump `next_seq` / `updated_at` (current `MessageRepo.Insert`)
 
 Keep transactions short. Do **not** hold a DB transaction open while waiting on Redis, MQ, or WS write.
 
 ```text
 // good sketch
 tx := begin
-insert message
-update conversation head
+alloc seq + touch conversation
+insert message (incl. reply_to_message_id)
 commit
-publish mq event          // after commit
-push to local gateway     // after commit (or via MQ)
+publish / hub push          // after commit
 ```
 
 If the process crashes after commit but before publish, recovery is **outbox** or **CDC**, not “expand the transaction across the bus”.

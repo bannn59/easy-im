@@ -6,19 +6,20 @@
 
 ## Bootstrap status
 
-> Scaffold and early product UI live under `frontend/`. Several rows below still describe
-> intended conventions (e.g. TanStack Query) that are not fully adopted yet — prefer the
-> code and topic guides when they disagree with bootstrap assumptions.
+> Scaffold and early product UI live under `frontend/`. **Chat room** is implemented in
+> `features/chat/` (bubbles, composer, emoji, reply). TanStack Query is still **not** the
+> message owner — room-local state + realtime merge; prefer topic guides and code when they
+> disagree with older bootstrap assumptions.
 
 | Assumption | Choice |
 |------------|--------|
 | UI library | React 18+ with TypeScript |
 | Bundler / app shell | Vite under `frontend/` |
-| Server state | TanStack Query (React Query) for HTTP (not fully wired yet) |
-| Realtime | Dedicated WebSocket client module under `src/realtime/` |
-| Client state | React state + Context for session/UI; avoid a global store until proven necessary |
-| Styling | Global CSS in `src/styles/index.css` (minimal tokens; no CSS modules/Tailwind yet) |
-| UI i18n | `i18next` + `react-i18next`; locales `en` / `zh-CN` under `src/i18n/` |
+| Server state | Room-local list today; TanStack Query intended later |
+| Realtime | `src/realtime/` WebSocket client (`message.created`) |
+| Client state | React state + Session context |
+| Styling | Global CSS `src/styles/index.css` (minimal tokens; **no WeChat green**) |
+| UI i18n | `i18next` + `react-i18next`; locales `en` / `zh-CN` |
 
 ---
 
@@ -26,10 +27,10 @@
 
 | Guide | Description | Status |
 |-------|-------------|--------|
-| [Directory Structure](./directory-structure.md) | Feature folders, shared UI, API/WS modules | Bootstrap |
-| [Component Guidelines](./component-guidelines.md) | Components, props, composition, a11y | Bootstrap |
+| [Directory Structure](./directory-structure.md) | Feature folders; `features/chat` ownership | Source-backed |
+| [Component Guidelines](./component-guidelines.md) | Bubble layout, room bands, styling | Source-backed |
 | [Hook Guidelines](./hook-guidelines.md) | Custom hooks, data fetching, WS hooks | Bootstrap |
-| [State Management](./state-management.md) | Session, server cache, realtime inbox | Bootstrap |
+| [State Management](./state-management.md) | Optimistic merge, reply draft, scroll | Source-backed |
 | [Type Safety](./type-safety.md) | Shared DTOs, guards, no `any` | Bootstrap |
 | [Quality Guidelines](./quality-guidelines.md) | Forbidden patterns, tests, review | Bootstrap |
 
@@ -38,7 +39,7 @@
 ## How to use these guidelines
 
 1. Read **Directory Structure** before adding features.
-2. For chat list / message pane work, also read **State Management** and **Hook Guidelines**.
-3. Keep protocol types aligned with backend contracts (`packages/` OpenAPI/proto or shared schemas).
+2. For chat list / message pane work, read **Component Guidelines** and **State Management**.
+3. Keep protocol types aligned with backend message DTO (including `reply_to`) — see backend realtime-messaging scenario.
 
-**Language**: Spec documents are written in **English**. Product UI strings use i18n (`en` / `zh-CN`); see [Directory Structure](./directory-structure.md) (`src/i18n/`) and [Quality Guidelines](./quality-guidelines.md).
+**Language**: Spec documents are written in **English**. Product UI strings use i18n (`en` / `zh-CN`).

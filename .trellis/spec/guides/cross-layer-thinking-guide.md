@@ -78,6 +78,25 @@ Pick one server-side order key (`seq` per conversation recommended) and use it i
 - DB index
 - HTTP history API
 - WS payload
+- Client sort / merge
+
+### 3. New message fields (e.g. reply_to)
+
+When adding a field to messages:
+
+- [ ] Migration + domain + repo scan/insert
+- [ ] Send validation (cross-conversation? deleted target?)
+- [ ] HTTP DTO **and** WS `message.created` payload stay isomorphic
+- [ ] List hydration batched (no N+1)
+- [ ] Frontend `api/messages.ts` type + optimistic local row + bubble render
+- [ ] Do **not** smuggle structured data only inside `body` text
+
+→ Details: [Realtime & Messaging — message.reply_to](../backend/realtime-messaging.md), [Database — messages table](../backend/database-guidelines.md)
+
+### 4. Optimistic UI
+
+- Client `client_msg_id` is the reconcile key across pending HTTP and WS.
+- One bubble per id/`client_msg_id`; retry reuses the same client id.
 - Client list sort
 
 Never let clients invent a global order from local clocks alone.

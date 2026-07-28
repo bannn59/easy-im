@@ -6,8 +6,9 @@
 
 ## Bootstrap status
 
-Scaffold landed: Vite + React + TS under `frontend/` with `src/app`, `api`, `realtime`, `i18n`, `features`, `shared`, `styles`.  
-Early product UI still lives mainly under `src/app/`; feature folders remain targets for later extraction.
+Scaffold landed: Vite + React + TS under `frontend/` with `src/app`, `api`, `realtime`, `i18n`, `features`, `shared`, `styles`.
+
+**Chat room UI has been extracted** to `features/chat/`. `app/AppShell.tsx` owns the workspace shell (conversation list + create + outlet). Message list / bubbles / composer live only under `features/chat/`.
 
 ---
 
@@ -21,6 +22,10 @@ frontend/
 ├── src/
 │   ├── main.tsx                # import './i18n' before App
 │   ├── app/                    # shell: router, providers, layouts, early screens
+│   │   ├── App.tsx             # routes; imports ConversationRoom from features/chat
+│   │   ├── AppShell.tsx        # /app layout: sidebar list + <Outlet />
+│   │   ├── Session.tsx
+│   │   └── …
 │   ├── i18n/                   # i18next init, locales, LanguageSwitcher
 │   │   ├── index.ts
 │   │   ├── resolveLanguage.ts
@@ -29,23 +34,40 @@ frontend/
 │   │       ├── en.json
 │   │       └── zh-CN.json
 │   ├── features/
+│   │   ├── chat/               # room UI (landed)
+│   │   │   ├── index.ts        # export ConversationRoom
+│   │   │   ├── ConversationRoom.tsx
+│   │   │   ├── MessageList.tsx
+│   │   │   ├── MessageBubble.tsx
+│   │   │   ├── Composer.tsx
+│   │   │   ├── EmojiPicker.tsx
+│   │   │   ├── ReplyBar.tsx
+│   │   │   ├── emoji.ts
+│   │   │   └── types.ts        # ChatItem, merge helpers
+│   │   ├── conversation/       # list/create may move here later from AppShell
 │   │   ├── auth/
-│   │   ├── conversation/       # chat list, create/join
-│   │   ├── chat/               # message list, composer, receipts
 │   │   ├── presence/
 │   │   └── settings/
 │   ├── shared/
-│   │   ├── ui/                 # dumb presentational components
-│   │   ├── lib/                # pure helpers (date, cursor, id)
-│   │   ├── hooks/              # cross-feature hooks
-│   │   └── types/              # only truly shared TS types (prefer contracts package)
-│   ├── api/                    # HTTP client, query keys, REST functions
-│   ├── realtime/               # WS client, frame types, reconnect, event bus
-│   └── styles/
-└── tests/                      # optional e2e / playwright
+│   │   ├── ui/
+│   │   ├── lib/
+│   │   ├── hooks/
+│   │   └── types/
+│   ├── api/                    # HTTP client + REST (messages.ts owns Message DTO)
+│   ├── realtime/               # WS client only — no raw WebSocket in features
+│   └── styles/index.css        # global tokens + workspace/room/bubble rules
+└── tests/
 ```
 
 Feature folders own their UI, feature hooks, and local types. They import `api/` and `realtime/`, not the reverse. `i18n/` is cross-cutting infrastructure (like `api/` / `realtime/`), not a feature.
+
+### `features/chat` ownership
+
+| Owns | Must not own |
+|------|--------------|
+| Room layout, bubbles, composer, emoji, reply bar, optimistic merge | Raw `fetch` / raw `WebSocket` |
+| Local `ChatItem` view model (`status`, `localKey`) | Divergent second copy of HTTP `Message` fields (extend `api/messages.ts`) |
+| Group vs DM display rules for sender labels | Conversation list CRUD (stays AppShell until extracted) |
 
 ---
 
@@ -58,7 +80,7 @@ Feature folders own their UI, feature hooks, and local types. They import `api/`
 | `realtime/` | Connection lifecycle, encode/decode, subscribe API | Message business rules duplicated from server |
 | `i18n/` | i18n init, locale JSON, language resolve/persist, language switcher | Feature business logic, API calls |
 | `shared/ui` | Reusable presentational widgets | Feature data fetching |
-| `app/` | Router, auth gate, provider tree | Deep feature UI |
+| `app/` | Router, auth gate, provider tree, workspace shell | Deep chat room UI |
 
 ---
 
@@ -84,7 +106,7 @@ frontend/src/api/     # imports generated types
 backend/              # source of truth for protocol
 ```
 
-Do not hand-maintain divergent `interface Message` in three feature files.
+Do not hand-maintain divergent `interface Message` in three feature files. Extend `api/messages.ts` once (including `reply_to`).
 
 ---
 
@@ -94,7 +116,7 @@ Do not hand-maintain divergent `interface Message` in three feature files.
 2. Add API functions + query keys under `api/` if HTTP is needed.
 3. Add frame handlers under `realtime/` if live events are needed.
 4. Wire route in `app/` router.
-5. Keep side effects in hooks, not in deep presentational components.
+5. Keep side effects in hooks/containers, not in deep presentational components.
 
 ---
 
@@ -106,12 +128,14 @@ Do not hand-maintain divergent `interface Message` in three feature files.
 - **Change language** via `setAppLanguage` (or equivalent): update i18n, write `easyim_lng`, set `document.documentElement.lang`.
 - **UI strings**: use `useTranslation` / `t('…')`. Do not hardcode user-visible English in components.
 - **Do not translate**: message bodies, conversation titles, emails, or raw `ApiError.message` from the server. Local fallback strings (e.g. network failure copy) go through `t()`.
+- Chat chrome keys live under `chat.*` (reply, emoji, retry, groupUntitled, …) plus existing `workspace.*`.
 
 ## Anti-patterns
 
 - `components/` mega-folder with no feature boundaries.
 - Importing from `features/a` into `features/b` freely (extract to `shared` or lift API).
-- Placing WS reconnection logic inside a single chat component.
+- Placing WS reconnection logic inside a single chat component — use `realtime/connectRealtime`.
+- Growing `AppShell.tsx` with room UI again (list/composer/bubbles belong in `features/chat`).
 - Duplicating backend URL and token logic per feature.
 - Hardcoding UI copy in components after i18n landed.
 - Wrapping server `ApiError.message` with `t()` (server text is not a catalog key).
@@ -121,6 +145,5 @@ Do not hand-maintain divergent `interface Message` in three feature files.
 ## Verification
 
 ```bash
-cd frontend && npm test          # or pnpm / yarn
-cd frontend && npm run typecheck
+cd frontend && npm run build     # tsc -b && vite build
 ```
