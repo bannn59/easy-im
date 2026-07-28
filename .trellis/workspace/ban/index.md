@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 7
+- **Total Sessions**: 8
 - **Last Active**: 2026-07-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~255 | Active |
+| `journal-1.md` | ~292 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,10 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 8 | 2026-07-28 | T4 HTTP messages M3 | `b26a991`
+`97db6ca` chore(task): archive 07-28-t4-http-messages
+`b26a991` feat: HTTP messages with seq and client_msg_id idempotency (M3)
+`bf8705c` chore: record journal | `main` |
 | 7 | 2026-07-28 | T3 conversations M2 | `77fc3d4` | `main` |
 | 6 | 2026-07-28 | T2 auth M1 and minimalism UI | `ae92e8d`, `e715470`, `5ffb70e`, `4e5be8d`, `9fa88f5` | `main` |
 | 5 | 2026-07-28 | T1 Postgres migrations and API errors | `26389d9`, `1bb5224`, `62c05c2`, `81cf1e2` | `main` |

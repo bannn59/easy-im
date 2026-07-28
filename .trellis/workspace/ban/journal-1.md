@@ -253,3 +253,40 @@ M2: conversation create/list/get with membership ACL and workspace UI. Archived 
 ### Next Steps
 
 - T4 HTTP messages + history + client_msg_id (M3)
+
+
+## Session 8: T4 HTTP messages M3
+
+**Date**: 2026-07-28
+**Task**: T4 HTTP messages M3
+**Branch**: `main`
+
+### Summary
+
+M3: HTTP message send/history with idempotent client_msg_id and FE composer/poll. Next T5 WS.
+
+### Main Changes
+
+- messages table, MessageService, APIs
+- ConversationRoom composer + 4s poll
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b26a991
+97db6ca chore(task): archive 07-28-t4-http-messages
+b26a991 feat: HTTP messages with seq and client_msg_id idempotency (M3)
+bf8705c chore: record journal` | (see git log) |
+
+### Testing
+
+- [OK] go test; npm build; idempotent smoke
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- T5 single-node WS gateway (M4)
