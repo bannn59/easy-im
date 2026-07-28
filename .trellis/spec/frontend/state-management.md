@@ -79,11 +79,13 @@ Pick **one owner**.
 - Preview: self last → i18n `youPreview`; group (`member_count > 2`) → `shortName(sender_email): body`; DM peer body only.
 - Do **not** treat sidebar unread as peer read receipts.
 
-### Friends page (relation MVP)
+### Friends page (relation + open-chat)
 
 - Owner: `features/friends/FriendsPage` local `useState` for incoming requests + friends list.
-- Data access only via `api/friends.ts` (`POST/GET` requests, accept/reject, list friends).
-- Refresh both lists after send/accept/reject; no open-chat actions on this page.
+- Data access via `api/friends.ts`: requests accept/reject/list, plus `openFriendConversation` → `POST /v1/friends/{id}/conversation`.
+- Refresh lists after send/accept/reject.
+- **Message** on a friend: open-DM API then navigate to `/app/c/:id` (get-or-create; same id on repeat).
+- Workspace sidebar no longer creates conversations by email; list remains `AppShell` + `GET /v1/conversations`.
 
 
 ---

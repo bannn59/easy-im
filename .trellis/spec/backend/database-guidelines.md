@@ -115,11 +115,22 @@ List DTO includes `last_message`, `unread_count`, optional `member_count` + `las
 
 Discovery is email-only via `users.email`. Delete-friend / block / notes are out of scope for the relation MVP.
 
+### Open direct 1:1 (friend-driven; landed)
+
+| Rule | Detail |
+|------|--------|
+| Entry | `POST /v1/friends/{userID}/conversation` → `ConversationService.OpenDirect` |
+| Gate | Accepted friendship required **only** on open/create; list/get/send/read do **not** re-check friends |
+| Lookup | `FindDirectBetween`: member count **exactly 2** and both user ids present |
+| Pick among many | `ORDER BY last_message_at DESC NULLS LAST, created_at DESC, id DESC LIMIT 1` — no merge migration |
+| Create | If none, insert conversation + two members (same patterns as before) |
+| Removed | `POST /v1/conversations` with `member_emails` — no email create path |
+
 ### Transactions
 
 Use transactions for multi-table writes that must commit together, e.g.:
 
-- create conversation + owner membership
+- create conversation + member rows (open-DM create path)
 - insert message + bump `next_seq` + **update conversation last_*** + **advance sender last_read_seq**
 - accept friend request + insert `friendships` edge
 
