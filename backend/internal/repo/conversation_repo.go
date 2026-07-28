@@ -105,6 +105,26 @@ func (r *ConversationRepo) GetIfMember(ctx context.Context, conversationID, user
 	return c, nil
 }
 
+// ListMemberIDs returns user ids in the conversation.
+func (r *ConversationRepo) ListMemberIDs(ctx context.Context, conversationID string) ([]string, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT user_id FROM conversation_members WHERE conversation_id = $1
+	`, conversationID)
+	if err != nil {
+		return nil, apperr.Internal("list member ids failed", err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, apperr.Internal("scan member id failed", err)
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
 func (r *ConversationRepo) listMembers(ctx context.Context, conversationID string) ([]domain.User, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT u.id, u.email, u.created_at, u.updated_at

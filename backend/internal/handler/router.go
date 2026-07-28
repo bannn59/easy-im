@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"easy-im/backend/internal/apperr"
+	"easy-im/backend/internal/hub"
 	"easy-im/backend/internal/service"
 )
 
@@ -18,6 +19,7 @@ type Deps struct {
 	Auth *service.AuthService
 	Conv *service.ConversationService
 	Msg  *service.MessageService
+	Hub  *hub.Hub
 }
 
 // NewMux registers HTTP routes and standard middleware for the API process.
@@ -53,6 +55,9 @@ func NewMux(deps Deps) http.Handler {
 	mux.Handle("GET /v1/conversations/{id}/messages", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		msg.List(w, r, r.PathValue("id"))
 	})))
+
+	ws := &WSHandler{Auth: deps.Auth, Hub: deps.Hub}
+	mux.Handle("/v1/ws", ws)
 
 	var h http.Handler = mux
 	h = withCORS(h)

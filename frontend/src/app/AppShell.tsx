@@ -8,6 +8,7 @@ import {
 } from '../api/conversations';
 import { listMessages, sendMessage, type Message } from '../api/messages';
 import { ApiError } from '../api/http';
+import { connectRealtime } from '../realtime';
 import { useSession } from './Session';
 
 export function AppShell() {
@@ -208,13 +209,27 @@ export function ConversationRoom() {
     };
   }, [id, session.token]);
 
-  // Lightweight poll so the other party can refresh without WS (M3).
+  // Realtime: merge pushed messages; keep a slow poll as fallback.
   useEffect(() => {
     if (!session.token || !id || !conv) return;
+    const stop = connectRealtime(session.token, {
+      onMessageCreated: (m) => {
+        if (m.conversation_id !== id) return;
+        setMessages((prev) => {
+          if (prev.some((x) => x.id === m.id || x.client_msg_id === m.client_msg_id)) {
+            return prev;
+          }
+          return [...prev, m].sort((a, b) => a.seq - b.seq);
+        });
+      },
+    });
     const t = window.setInterval(() => {
       void loadMessages().catch(() => undefined);
-    }, 4000);
-    return () => window.clearInterval(t);
+    }, 15000);
+    return () => {
+      stop();
+      window.clearInterval(t);
+    };
   }, [session.token, id, conv, loadMessages]);
 
   async function onSend(e: FormEvent) {

@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"easy-im/backend/internal/handler"
+	"easy-im/backend/internal/hub"
 	"easy-im/backend/internal/repo"
 	"easy-im/backend/internal/service"
 )
@@ -22,6 +23,7 @@ type APIOptions struct {
 
 // NewAPIHandler wires HTTP handlers for cmd/api.
 func NewAPIHandler(opts APIOptions) http.Handler {
+	rtHub := hub.New()
 	var auth *service.AuthService
 	var conv *service.ConversationService
 	var msg *service.MessageService
@@ -37,7 +39,7 @@ func NewAPIHandler(opts APIOptions) http.Handler {
 			},
 		)
 		conv = service.NewConversationService(convs, users)
-		msg = service.NewMessageService(messages, convs)
+		msg = service.NewMessageService(messages, convs, rtHub)
 	}
 	return handler.NewMux(handler.Deps{
 		Pool: opts.Pool,
@@ -45,5 +47,6 @@ func NewAPIHandler(opts APIOptions) http.Handler {
 		Auth: auth,
 		Conv: conv,
 		Msg:  msg,
+		Hub:  rtHub,
 	})
 }

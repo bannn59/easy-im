@@ -68,10 +68,20 @@ func (m memMembers) IsMember(_ context.Context, conversationID, userID string) (
 	return m[conversationID][userID], nil
 }
 
+func (m memMembers) ListMemberIDs(_ context.Context, conversationID string) ([]string, error) {
+	var out []string
+	for uid, ok := range m[conversationID] {
+		if ok {
+			out = append(out, uid)
+		}
+	}
+	return out, nil
+}
+
 func TestMessageSendListIdempotent(t *testing.T) {
 	store := newMemMsg()
 	members := memMembers{"c1": {"u1": true, "u2": true}}
-	svc := NewMessageService(store, members)
+	svc := NewMessageService(store, members, nil)
 	svc.now = func() time.Time { return time.Date(2026, 7, 28, 12, 0, 0, 0, time.UTC) }
 
 	m1, err := svc.Send(context.Background(), SendMessageInput{
