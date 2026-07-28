@@ -180,3 +180,42 @@ Landed T1/P0: pgx pool, goose migrations with users table, apperr + request_id e
 ### Next Steps
 
 - T2: register/login + /me + frontend login (M1)
+
+
+## Session 6: T2 auth M1 and minimalism UI
+
+**Date**: 2026-07-28
+**Task**: T2 auth M1 and minimalism UI
+**Branch**: `main`
+
+### Summary
+
+Shipped M1 auth (JWT register/login/me + FE session/app shell) and redesigned frontend shell to Minimalism: quiet hierarchy, B/W/gray tokens, restrained interaction. Archived t2-auth-login.
+
+### Main Changes
+
+- Backend auth: bcrypt, JWT, /v1/auth/*, /v1/me, repo/service layers
+- Frontend auth pages, Session, protected /app
+- Minimalism redesign of home/auth/health/workspace chrome
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ae92e8d` | (see git log) |
+| `e715470` | (see git log) |
+| `5ffb70e` | (see git log) |
+| `4e5be8d` | (see git log) |
+| `9fa88f5` | (see git log) |
+
+### Testing
+
+- [OK] go test ./...; npm run build; register/login/me smoke
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- T3: conversations create/list + ACL (M2)
