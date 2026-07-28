@@ -13,11 +13,10 @@ import (
 
 // Deps are optional process dependencies for HTTP handlers.
 type Deps struct {
-	// Pool may be nil when DATABASE_URL is unset.
 	Pool *pgxpool.Pool
 	Log  *slog.Logger
-	// Auth may be nil when JWT secret or DB is unset.
 	Auth *service.AuthService
+	Conv *service.ConversationService
 }
 
 // NewMux registers HTTP routes and standard middleware for the API process.
@@ -34,6 +33,23 @@ func NewMux(deps Deps) http.Handler {
 	mux.HandleFunc("/v1/auth/register", auth.Register)
 	mux.HandleFunc("/v1/auth/login", auth.Login)
 	mux.HandleFunc("/v1/me", auth.Me)
+
+	conv := &ConversationHandler{Conv: deps.Conv}
+	require := RequireUser(deps.Auth)
+	mux.Handle("POST /v1/conversations", require(http.HandlerFunc(conv.Create)))
+	mux.Handle("GET /v1/conversations", require(http.HandlerFunc(conv.List)))
+	mux.Handle("GET /v1/conversations/{id}", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Go 1.22+ path value
+		id := r.PathValue("id")
+		if id == "" {
+			WriteError(w, r, apperr.NotFound("conversation not found"))
+			return
+		}
+		// reuse Get by rewriting path for existing handler logic
+		r2 := r.Clone(r.Context())
+		r2.URL.Path = "/v1/conversations/" + id
+		conv.Get(w, r2)
+	})))
 
 	var h http.Handler = mux
 	h = withCORS(h)

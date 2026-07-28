@@ -404,6 +404,70 @@ code {
   }
 }
 
+/* —— Workspace (conversations) —— */
+.shell:has(.workspace) {
+  max-width: 64rem;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(14rem, 18rem) 1fr;
+  gap: var(--space-6);
+  align-items: start;
+  min-height: 24rem;
+}
+
+.workspace__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-right: var(--space-4);
+  border-right: 1px solid var(--line);
+  min-height: 20rem;
+}
+
+.workspace__side-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.workspace__create {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.workspace__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+  flex: 1;
+}
+
+.workspace__list li {
+  border-bottom: 1px solid var(--line);
+}
+
+.workspace__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: var(--space-3) 0;
+  text-decoration: none;
+  color: var(--ink);
+  font-size: 0.9375rem;
+}
+
+.workspace__item:hover {
+  color: var(--ink-secondary);
+}
+
+.workspace__main {
+  min-width: 0;
+}
+
 @media (max-width: 640px) {
   .shell {
     padding: var(--space-4) var(--space-4) var(--space-6);
@@ -417,5 +481,17 @@ code {
 
   .shell__nav {
     justify-content: flex-start;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace__side {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+    padding-right: 0;
+    padding-bottom: var(--space-4);
+    min-height: 0;
   }
 }

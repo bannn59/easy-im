@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "layers"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "schema naming"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "ACL errors"}
+{"file": ".trellis/tasks/archive/2026-07/07-28-feature-dev-roadmap/research/roadmap.md", "reason": "P2 scope"}
+{"file": "backend/internal/service/auth_service.go", "reason": "token parse reuse"}

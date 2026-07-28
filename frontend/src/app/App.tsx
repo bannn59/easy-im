@@ -1,6 +1,6 @@
 import { BrowserRouter, NavLink, Route, Routes, Link } from 'react-router-dom';
 import { AuthPage } from './AuthPage';
-import { AppShell } from './AppShell';
+import { AppShell, ConversationHome, ConversationRoom } from './AppShell';
 import { HealthPage } from './HealthPage';
 import { HomePage } from './HomePage';
 import { SessionProvider, useSession } from './Session';
@@ -47,7 +47,10 @@ export function App() {
               <Route path="/health" element={<HealthPage />} />
               <Route path="/login" element={<AuthPage mode="login" />} />
               <Route path="/register" element={<AuthPage mode="register" />} />
-              <Route path="/app" element={<AppShell />} />
+              <Route path="/app" element={<AppShell />}>
+                <Route index element={<ConversationHome />} />
+                <Route path="c/:id" element={<ConversationRoom />} />
+              </Route>
             </Routes>
           </main>
         </div>

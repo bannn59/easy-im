@@ -65,3 +65,26 @@ func (r *UserRepo) FindByID(ctx context.Context, id string) (domain.User, error)
 	}
 	return u, nil
 }
+
+// FindIDsByEmails maps lowercased email → user id for emails that exist.
+func (r *UserRepo) FindIDsByEmails(ctx context.Context, emails []string) (map[string]string, error) {
+	out := map[string]string{}
+	if len(emails) == 0 {
+		return out, nil
+	}
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, email FROM users WHERE email = ANY($1)
+	`, emails)
+	if err != nil {
+		return nil, apperr.Internal("lookup emails failed", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, email string
+		if err := rows.Scan(&id, &email); err != nil {
+			return nil, apperr.Internal("scan email failed", err)
+		}
+		out[email] = id
+	}
+	return out, rows.Err()
+}

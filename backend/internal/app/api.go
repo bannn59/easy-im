@@ -23,18 +23,22 @@ type APIOptions struct {
 // NewAPIHandler wires HTTP handlers for cmd/api.
 func NewAPIHandler(opts APIOptions) http.Handler {
 	var auth *service.AuthService
+	var conv *service.ConversationService
 	if opts.Pool != nil && opts.AuthJWTSecret != "" {
+		users := repo.NewUserRepo(opts.Pool)
 		auth = service.NewAuthService(
-			repo.NewUserRepo(opts.Pool),
+			users,
 			service.AuthConfig{
 				JWTSecret: []byte(opts.AuthJWTSecret),
 				TokenTTL:  opts.AuthTokenTTL,
 			},
 		)
+		conv = service.NewConversationService(repo.NewConversationRepo(opts.Pool), users)
 	}
 	return handler.NewMux(handler.Deps{
 		Pool: opts.Pool,
 		Log:  opts.Log,
 		Auth: auth,
+		Conv: conv,
 	})
 }
