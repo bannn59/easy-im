@@ -1,0 +1,5 @@
+{"file": ".trellis/tasks/07-28-t2-auth-login/prd.md", "reason": "AC"}
+{"file": ".trellis/tasks/07-28-t2-auth-login/design.md", "reason": "JWT bcrypt API shapes"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "error mapping review"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "layer boundaries"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "FE auth patterns"}

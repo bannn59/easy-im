@@ -1,0 +1,9 @@
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Map auth errors to HTTP/JSON"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "users table already migrated; repo patterns"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "handler/service/repo layers"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "ACL later; no handler SQL; context"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "features/auth, api modules"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "no raw fetch sprawl; token handling"}
+{"file": ".trellis/tasks/archive/2026-07/07-28-feature-dev-roadmap/research/roadmap.md", "reason": "M1 / T2 scope"}
+{"file": ".trellis/tasks/archive/2026-07/07-28-p0-db-errors/design.md", "reason": "T1 contracts to build on"}
+{"file": "backend/migrations/20260728120000_init_users.sql", "reason": "users schema"}
