@@ -6,9 +6,13 @@ import (
 
 func TestLoadDefaultPort(t *testing.T) {
 	t.Setenv("PORT", "")
+	t.Setenv("DATABASE_URL", "")
 	cfg := Load()
 	if cfg.Addr != ":8080" {
 		t.Fatalf("Addr = %q, want :8080", cfg.Addr)
+	}
+	if cfg.DatabaseURL != "" {
+		t.Fatalf("DatabaseURL = %q, want empty", cfg.DatabaseURL)
 	}
 }
 
@@ -25,5 +29,13 @@ func TestLoadInvalidPortFallsBack(t *testing.T) {
 	cfg := Load()
 	if cfg.Addr != ":8080" {
 		t.Fatalf("Addr = %q, want :8080", cfg.Addr)
+	}
+}
+
+func TestLoadDatabaseURL(t *testing.T) {
+	t.Setenv("DATABASE_URL", "  postgres://u:p@localhost:5432/db?sslmode=disable  ")
+	cfg := Load()
+	if cfg.DatabaseURL != "postgres://u:p@localhost:5432/db?sslmode=disable" {
+		t.Fatalf("DatabaseURL = %q", cfg.DatabaseURL)
 	}
 }
