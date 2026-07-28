@@ -1,0 +1,6 @@
+{"file": ".trellis/tasks/archive/2026-07/07-28-feature-map-survey/research/index.md", "reason": "Feature map groups and empty-state baseline"}
+{"file": ".trellis/tasks/archive/2026-07/07-28-feature-map-survey/research/notes/gaps-and-next.md", "reason": "Suggested build order from survey"}
+{"file": ".trellis/spec/backend/realtime-messaging.md", "reason": "WS/MQ ordering constraints"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Process split api/gateway/worker"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "Frontend feature layout targets"}
+{"file": "README.md", "reason": "Current scaffold capabilities"}
