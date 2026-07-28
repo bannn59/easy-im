@@ -219,3 +219,37 @@ Shipped M1 auth (JWT register/login/me + FE session/app shell) and redesigned fr
 ### Next Steps
 
 - T3: conversations create/list + ACL (M2)
+
+
+## Session 7: T3 conversations M2
+
+**Date**: 2026-07-28
+**Task**: T3 conversations M2
+**Branch**: `main`
+
+### Summary
+
+M2: conversation create/list/get with membership ACL and workspace UI. Archived t3-conversations.
+
+### Main Changes
+
+- migrations conversations + members; repo/service/handlers
+- FE workspace sidebar create/list and empty room
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `77fc3d4` | (see git log) |
+
+### Testing
+
+- [OK] go test; npm build; two-user smoke ACL 404
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- T4 HTTP messages + history + client_msg_id (M3)
