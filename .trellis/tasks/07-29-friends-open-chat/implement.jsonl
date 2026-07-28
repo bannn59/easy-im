@@ -1,1 +1,9 @@
-{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Service/handler/repo boundaries for open-DM use-case"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Conversation members queries; friend edge reuse; list head fields"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Non-friend and invalid open-chat errors"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Tests for get-or-create and ACL"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "Friends open-chat entry vs AppShell list"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Sidebar list after open-chat; no email create form"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Minimal open-chat UI on friends page"}
+{"file": ".trellis/tasks/07-29-friends-open-chat/prd.md", "reason": "Authoritative AC for open-chat child"}
+{"file": ".trellis/tasks/07-29-friends-chat/prd.md", "reason": "Parent locked decisions and integration AC"}

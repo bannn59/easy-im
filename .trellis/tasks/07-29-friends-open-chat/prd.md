@@ -7,56 +7,62 @@
 ## Background
 
 - 父任务：`07-29-friends-chat`。
-- 当前：`POST /v1/conversations` + `member_emails`；前端 AppShell 邮箱创建；无 get-or-create。
-- 已定：邮箱建会话入口 **完全移除**（2026-07-29）；本任务 **不** 另建群聊创建路径。
+- 依赖子任务 `07-29-friends-relation` **已归档交付**：`friend_requests` / `friendships`、`/v1/friends*`、Friends 页。
+- 现状仍在：`POST /v1/conversations` + `member_emails`；`AppShell` 邮箱创建表单；**无** get-or-create DM。
 
 ## Dependencies
 
-- **必须先**完成并可验收：`07-29-friends-relation`（至少：已是好友可查询 + 好友列表）。
+- **已满足**：`07-29-friends-relation` 可查询「已是好友」与好友列表。
 - 依赖写在本文件，不靠目录树位置暗示。
+
+## Confirmed Facts
+
+- 创建入口：`backend/internal/handler/conversation.go` + `service.ConversationService.Create` + `frontend` `createConversation({ member_emails })`。
+- 好友边：`friendships` 无向 canonical pair；`FriendService` / repo 可复用或扩展 `AreFriends`。
+- 列表/消息/WS **不**因本任务改为「发消息前校验好友」。
 
 ## Requirements
 
-- R1. 新的开聊入口：从好友列表（或等价「与某好友开始聊天」）发起 1:1。
-- R2. 创建/进入 1:1 时，服务端校验双方已是好友；非好友拒绝。
-- R3. API 与前端 **移除** 基于 `member_emails` 的创建会话能力（请求体、客户端表单、文案）。
-- R4. **历史会话保留可聊**：改造前已存在的会话（含成员彼此尚非好友）仍出现在列表，可继续读历史、发新消息；**不**在发消息路径强制好友校验。门禁仅作用于「新建」。
-- R5. **Get-or-create 唯一 1:1**：从好友 B 开聊时，若已存在成员集合恰好为 `{A,B}` 的会话则复用并返回；否则创建。产品心智对齐微信「一个好友一条会话」。
-- R6. 若历史已有多条 A–B 二人会话：复用一条（最近有消息或最近创建，design 定一种可测规则）；**不做**多会话合并迁移。
-- R7. 删除会话 / 清空历史 / 删除态多端同步：待父级下一题决定是否纳入；未纳入前不做。
+- R1. 新开聊入口：从好友列表（或等价「与某好友开始聊天」）发起 1:1。
+- R2. 服务端在**新建/get-or-create 开聊**时校验双方已是好友；非好友拒绝。
+- R3. API 与前端 **移除** `member_emails` 创建会话能力（请求体、客户端表单、相关文案）。
+- R4. **历史会话保留可聊**：改造前已存在会话仍可列表、读历史、发消息；发消息路径**不**强制好友。
+- R5. **Get-or-create 唯一 1:1**：对好友 B 开聊时，若已存在成员集合恰好为 `{A,B}` 的会话则复用；否则创建。
+- R6. 历史已有多条 A–B 二人会话：复用**一条**——优先「最近有消息」（`last_message_at` 最新），若都无消息则最近创建；**不做**合并迁移。
+- R7. 删除会话 / 清空历史 / 列表删除态多端同步：**不做**（父级已定）。
 
 ## Out of Scope
 
-- 好友请求/同意/列表本身（→ relation）
-- 群聊创建 / 多成员会话产品化（移除邮箱创建后，本任务不提供替代群聊入口）
-- 好友发现、拉黑
-- 清算/只读化/隐藏历史非好友会话
-- 多条历史 1:1 的合并迁移
-- （待定）删除会话、清空聊天记录、列表删除状态的多端同步 — 若父级判出 MVP 再写入 Requirements
+- 好友请求/同意/列表（已由 relation 交付）
+- 群聊创建 / 多成员会话产品化
+- 拉黑、删除好友
+- 历史非好友会话只读化/隐藏
+- 多条 1:1 合并迁移
+- 删会话、清空记录、列表态多端同步
 
 ## Acceptance Criteria
 
 - [ ] AC1. 好友 A、B 可从好友入口进入 1:1 并收发消息。
 - [ ] AC2. 非好友无法通过新开聊 API/UI 创建 1:1。
-- [ ] AC3. 使用旧 `member_emails` 创建（若仍发请求）被拒绝或接口已不存在；前端无邮箱建会话表单。
-- [ ] AC4. 改造前已存在的会话，成员仍可列表可见、读历史、发消息（不因「彼此还不是好友」被拦截）。
-- [ ] AC5. 对同一对好友连续两次「开聊」，返回/进入的是**同一** conversation id（get-or-create），不新增平行 1:1。
-- [ ] AC6. （若纳入删除/多端列表态：补 AC；否则本条删除。）
+- [ ] AC3. 旧 `member_emails` 创建不可用（接口移除或稳定拒绝）；前端无邮箱建会话表单。
+- [ ] AC4. 改造前已存在会话：成员仍可列表可见、读历史、发消息（不因「彼此还不是好友」被拦）。
+- [ ] AC5. 对同一对好友连续两次「开聊」，得到**同一** `conversation id`，不新增平行 1:1。
 
 ## Key Decisions
 
 | 决策 | 选择 |
 |------|------|
-| 邮箱建会话 | **完全移除**（2026-07-29） |
-| 历史非好友会话 | **保留可聊**（2026-07-29） |
-| 1:1 get-or-create | **唯一二人会话，有则复用**（2026-07-29）；类微信列表心智 |
-| 删除 / 列表态多端同步 | 待定 |
+| 邮箱建会话 | **完全移除** |
+| 历史非好友会话 | **保留可聊**（只拦新建） |
+| 1:1 | **Get-or-create**；多历史条时复用最近有消息 / 否则最近创建 |
+| 删会话 / 列表态多端 | **不做** |
+| 规划形态 | PRD + jsonl（与 relation 一致；无独立 design.md 强制） |
 
 ## Open Questions
 
-- 「删除历史 / 删会话 / 该状态多端同步」是否本任务 MVP？
+- （无阻塞项。）
 
 ## Notes
 
-- 规划可与 relation 并行；**`task.py start` / 实现须在 relation 之后**。
-- complex：改 create 契约 + 前端入口；start 前 design + implement + jsonl。
+- 实现建议形态（非 PRD 强制 API 名）：例如 `POST /v1/friends/{id}/conversation` 或 `POST /v1/conversations` body 改为 `peer_user_id`；须好友校验 + get-or-create。
+- Start 前 jsonl 已固化；用户确认本摘要后方可 `task.py start`。
