@@ -6,7 +6,8 @@
 
 ## Bootstrap status
 
-Intended layout under `frontend/`. Paths are targets until the app is scaffolded.
+Scaffold landed: Vite + React + TS under `frontend/` with `src/app`, `api`, `realtime` (placeholder), `features`, `shared`, `styles`.  
+Product features (auth/chat/…) remain empty targets.
 
 ---
 

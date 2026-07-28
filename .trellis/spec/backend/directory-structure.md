@@ -6,7 +6,8 @@
 
 ## Bootstrap status
 
-Assumed layout for a monorepo IM backend. Paths are **targets**, not existing files.
+Scaffold landed: `backend/go.mod`, `cmd/api`, `internal/{config,handler,app,domain}`, `migrations/`.  
+Gateway/worker and full domain packages remain **targets**, not implemented.
 
 ---
 
