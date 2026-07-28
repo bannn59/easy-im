@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, Navigate, Outlet, useNavigate, useMatch } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -7,13 +7,72 @@ import {
   type Conversation,
 } from '../api/conversations';
 import { ApiError } from '../api/http';
+import type { Message } from '../api/messages';
+import { connectRealtime } from '../realtime';
 import { useSession } from './Session';
+
+function sortConversations(items: Conversation[]): Conversation[] {
+  return [...items].sort((a, b) => {
+    const ta = a.last_message?.created_at || a.updated_at;
+    const tb = b.last_message?.created_at || b.updated_at;
+    return tb.localeCompare(ta);
+  });
+}
+
+function formatListTime(iso: string | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const now = new Date();
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  if (sameDay) {
+    return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(d);
+  }
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(d);
+}
+
+function shortLocal(emailOrName: string): string {
+  const s = emailOrName.trim();
+  if (!s) return '';
+  if (s.includes('@')) return s.split('@')[0] || s;
+  return s;
+}
+
+function truncatePreviewBody(body: string, max = 120): string {
+  const runes = [...body];
+  return runes.length > max ? runes.slice(0, max).join('') : body;
+}
+
+function previewLine(
+  c: Conversation,
+  selfId: string | undefined,
+  t: (k: string, o?: Record<string, string>) => string,
+): string {
+  const lm = c.last_message;
+  if (!lm) return '';
+  const body = lm.body;
+  if (lm.sender_id === selfId) {
+    return t('workspace.youPreview', { body });
+  }
+  // Group: prefix short sender name only when we have an email (avoid raw UUID).
+  const isGroup = (c.member_count ?? 0) > 2;
+  if (isGroup) {
+    const who = shortLocal(lm.sender_email || '');
+    return who ? `${who}: ${body}` : body;
+  }
+  return body;
+}
 
 export function AppShell() {
   const session = useSession();
   const navigate = useNavigate();
   const roomMatch = useMatch('/app/c/:id');
   const activeId = roomMatch?.params.id;
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
   const { t } = useTranslation();
   const [items, setItems] = useState<Conversation[]>([]);
   const [loadingList, setLoadingList] = useState(false);
@@ -28,7 +87,7 @@ export function AppShell() {
     setListError(null);
     try {
       const res = await listConversations(session.token);
-      setItems(res.conversations ?? []);
+      setItems(sortConversations(res.conversations ?? []));
     } catch (err) {
       setListError(err instanceof ApiError ? err.message : t('common.failedToLoad'));
     } finally {
@@ -41,6 +100,60 @@ export function AppShell() {
       void refresh();
     }
   }, [session.user, session.token, refresh]);
+
+  // Workspace-level realtime: patch list preview / unread (stable socket; active room via ref).
+  useEffect(() => {
+    if (!session.token || !session.user) return;
+    const selfId = session.user.id;
+    const selfEmail = session.user.email;
+    const stop = connectRealtime(session.token, {
+      onMessageCreated: (m: Message) => {
+        setItems((prev) => {
+          const idx = prev.findIndex((c) => c.id === m.conversation_id);
+          if (idx < 0) return prev;
+          const cur = prev[idx];
+          const inRoom = activeIdRef.current === m.conversation_id;
+          let unread = cur.unread_count ?? 0;
+          if (inRoom) {
+            unread = 0;
+          } else if (m.sender_id !== selfId) {
+            unread += 1;
+          }
+          // Preserve sender_email when possible (WS payload has no email).
+          let senderEmail: string | null | undefined;
+          if (m.sender_id === selfId) {
+            senderEmail = selfEmail;
+          } else if (m.sender_id === cur.last_message?.sender_id) {
+            senderEmail = cur.last_message?.sender_email;
+          }
+          const next: Conversation = {
+            ...cur,
+            updated_at: m.created_at,
+            last_message: {
+              seq: m.seq,
+              body: truncatePreviewBody(m.body),
+              sender_id: m.sender_id,
+              sender_email: senderEmail,
+              created_at: m.created_at,
+            },
+            unread_count: unread,
+          };
+          const copy = prev.slice();
+          copy[idx] = next;
+          return sortConversations(copy);
+        });
+      },
+    });
+    return stop;
+  }, [session.token, session.user]);
+
+  // When entering a room, zero badge optimistically; room will mark-read.
+  useEffect(() => {
+    if (!activeId) return;
+    setItems((prev) =>
+      prev.map((c) => (c.id === activeId ? { ...c, unread_count: 0 } : c)),
+    );
+  }, [activeId]);
 
   if (session.loading) {
     return (
@@ -125,6 +238,9 @@ export function AppShell() {
         <ul className="workspace__list">
           {items.map((c) => {
             const active = activeId === c.id;
+            const unread = c.unread_count ?? 0;
+            const time = formatListTime(c.last_message?.created_at || c.updated_at);
+            const preview = previewLine(c, session.user?.id, t);
             return (
               <li key={c.id}>
                 <Link
@@ -132,8 +248,20 @@ export function AppShell() {
                   className={`workspace__item${active ? ' workspace__item--active' : ''}`}
                   aria-current={active ? 'page' : undefined}
                 >
-                  <span>{c.title?.trim() ? c.title : t('common.untitled')}</span>
-                  <span className="muted">{c.id.slice(0, 8)}</span>
+                  <div className="workspace__item-top">
+                    <span className="workspace__item-title">
+                      {c.title?.trim() ? c.title : t('common.untitled')}
+                    </span>
+                    <span className="workspace__item-time muted">{time}</span>
+                  </div>
+                  <div className="workspace__item-bottom">
+                    <span className="workspace__item-preview muted">{preview || c.id.slice(0, 8)}</span>
+                    {unread > 0 && (
+                      <span className="workspace__badge" aria-label={t('workspace.unreadAria', { count: unread })}>
+                        {unread > 99 ? '99+' : unread}
+                      </span>
+                    )}
+                  </div>
                 </Link>
               </li>
             );

@@ -55,6 +55,9 @@ func NewMux(deps Deps) http.Handler {
 	mux.Handle("GET /v1/conversations/{id}/messages", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		msg.List(w, r, r.PathValue("id"))
 	})))
+	mux.Handle("POST /v1/conversations/{id}/read", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conv.MarkRead(w, r, r.PathValue("id"))
+	})))
 
 	ws := &WSHandler{Auth: deps.Auth, Hub: deps.Hub}
 	mux.Handle("/v1/ws", ws)

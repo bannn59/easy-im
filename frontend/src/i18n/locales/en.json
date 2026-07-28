@@ -65,7 +65,9 @@
     "messagePlaceholder": "Write a message",
     "sending": "Sending…",
     "send": "Send",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "youPreview": "You: {{body}}",
+    "unreadAria": "{{count}} unread"
   },
   "chat": {
     "reply": "Reply",

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { getConversation, type Conversation } from '../../api/conversations';
+import { getConversation, markConversationRead, type Conversation } from '../../api/conversations';
 import { listMessages, sendMessage, type Message } from '../../api/messages';
 import { ApiError } from '../../api/http';
 import { connectRealtime } from '../../realtime';
@@ -80,10 +80,15 @@ export function ConversationRoom() {
     setText('');
     stickToBottom.current = true;
     Promise.all([getConversation(session.token, id), listMessages(session.token, id, { limit: 100 })])
-      .then(([c, msgRes]) => {
-        if (!cancelled) {
-          setConv(c);
-          setMessages((msgRes.messages ?? []).map((m) => toChatItem(m)));
+      .then(async ([c, msgRes]) => {
+        if (cancelled) return;
+        setConv(c);
+        setMessages((msgRes.messages ?? []).map((m) => toChatItem(m)));
+        // Self-only unread: opening the room marks read to head.
+        try {
+          await markConversationRead(session.token!, id);
+        } catch {
+          // non-fatal: badge may clear on next list refresh
         }
       })
       .catch((err: unknown) => {
@@ -116,14 +121,15 @@ export function ConversationRoom() {
 
   useEffect(() => {
     if (!session.token || !id || !conv) return;
-    const stop = connectRealtime(session.token, {
+    const token = session.token;
+    const convId = id;
+    const stop = connectRealtime(token, {
       onMessageCreated: (m) => {
-        if (m.conversation_id !== id) return;
-        setMessages((prev) => {
-          const next = mergeMessage(prev, toChatItem(m));
-          return next;
-        });
+        if (m.conversation_id !== convId) return;
+        setMessages((prev) => mergeMessage(prev, toChatItem(m)));
         requestAnimationFrame(() => scrollToBottom(false));
+        // Keep self last_read_seq current while viewing (list badge uses server count on refresh).
+        void markConversationRead(token, convId, m.seq).catch(() => undefined);
       },
     });
     const timer = window.setInterval(() => {

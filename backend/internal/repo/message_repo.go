@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"errors"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -11,6 +12,15 @@ import (
 	"easy-im/backend/internal/apperr"
 	"easy-im/backend/internal/domain"
 )
+
+const lastMessagePreviewMaxRunes = 120
+
+func truncatePreview(s string, max int) string {
+	if max <= 0 || utf8.RuneCountInString(s) <= max {
+		return s
+	}
+	return string([]rune(s)[:max])
+}
 
 // MessageRepo persists messages.
 type MessageRepo struct {
@@ -89,6 +99,30 @@ func (r *MessageRepo) Insert(ctx context.Context, m domain.Message) (domain.Mess
 		}
 		return domain.Message{}, apperr.Internal("insert message failed", err)
 	}
+
+	preview := truncatePreview(m.Body, lastMessagePreviewMaxRunes)
+	_, err = tx.Exec(ctx, `
+		UPDATE conversations SET
+			last_message_at = $2,
+			last_message_seq = $3,
+			last_message_preview = $4,
+			last_message_sender_id = $5,
+			updated_at = now()
+		WHERE id = $1
+	`, m.ConversationID, m.CreatedAt, m.Seq, preview, m.SenderID)
+	if err != nil {
+		return domain.Message{}, apperr.Internal("update conversation head failed", err)
+	}
+
+	_, err = tx.Exec(ctx, `
+		UPDATE conversation_members
+		SET last_read_seq = GREATEST(last_read_seq, $3)
+		WHERE conversation_id = $1 AND user_id = $2
+	`, m.ConversationID, m.SenderID, m.Seq)
+	if err != nil {
+		return domain.Message{}, apperr.Internal("advance sender read cursor failed", err)
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return domain.Message{}, apperr.Internal("commit message failed", err)
 	}

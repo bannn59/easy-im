@@ -56,11 +56,25 @@ func (r *ConversationRepo) Create(ctx context.Context, c domain.Conversation, me
 
 func (r *ConversationRepo) ListForUser(ctx context.Context, userID string) ([]domain.Conversation, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT c.id, c.title, c.created_by, c.created_at, c.updated_at
+		SELECT c.id, c.title, c.created_by, c.created_at, c.updated_at,
+			c.last_message_at, c.last_message_seq, c.last_message_preview, c.last_message_sender_id,
+			su.email,
+			m.last_read_seq,
+			(
+				SELECT COUNT(*)::bigint FROM messages msg
+				WHERE msg.conversation_id = c.id
+				  AND msg.seq > m.last_read_seq
+				  AND msg.sender_id <> m.user_id
+			) AS unread_count,
+			(
+				SELECT COUNT(*)::int FROM conversation_members cm
+				WHERE cm.conversation_id = c.id
+			) AS member_count
 		FROM conversations c
 		INNER JOIN conversation_members m ON m.conversation_id = c.id
+		LEFT JOIN users su ON su.id = c.last_message_sender_id
 		WHERE m.user_id = $1
-		ORDER BY c.updated_at DESC
+		ORDER BY COALESCE(c.last_message_at, c.updated_at) DESC, c.id DESC
 	`, userID)
 	if err != nil {
 		return nil, apperr.Internal("list conversations failed", err)
@@ -69,26 +83,61 @@ func (r *ConversationRepo) ListForUser(ctx context.Context, userID string) ([]do
 
 	var out []domain.Conversation
 	for rows.Next() {
-		var c domain.Conversation
-		var title *string
-		if err := rows.Scan(&c.ID, &title, &c.CreatedBy, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		c, err := scanConversationListRow(rows)
+		if err != nil {
 			return nil, apperr.Internal("scan conversation failed", err)
 		}
-		c.Title = title
 		out = append(out, c)
 	}
 	return out, rows.Err()
+}
+
+func scanConversationListRow(row pgx.Row) (domain.Conversation, error) {
+	var c domain.Conversation
+	var title *string
+	err := row.Scan(
+		&c.ID, &title, &c.CreatedBy, &c.CreatedAt, &c.UpdatedAt,
+		&c.LastMessageAt, &c.LastMessageSeq, &c.LastMessagePreview, &c.LastMessageSenderID,
+		&c.LastMessageSenderEmail,
+		&c.LastReadSeq, &c.UnreadCount, &c.MemberCount,
+	)
+	c.Title = title
+	return c, err
+}
+
+// MarkRead raises the member's last_read_seq to at least seq (clamped by caller).
+func (r *ConversationRepo) MarkRead(ctx context.Context, conversationID, userID string, seq int64) (int64, error) {
+	var out int64
+	err := r.pool.QueryRow(ctx, `
+		UPDATE conversation_members
+		SET last_read_seq = GREATEST(last_read_seq, $3)
+		WHERE conversation_id = $1 AND user_id = $2
+		RETURNING last_read_seq
+	`, conversationID, userID, seq).Scan(&out)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, apperr.NotFound("conversation not found")
+		}
+		return 0, apperr.Internal("mark read failed", err)
+	}
+	return out, nil
 }
 
 func (r *ConversationRepo) GetIfMember(ctx context.Context, conversationID, userID string) (domain.Conversation, error) {
 	var c domain.Conversation
 	var title *string
 	err := r.pool.QueryRow(ctx, `
-		SELECT c.id, c.title, c.created_by, c.created_at, c.updated_at
+		SELECT c.id, c.title, c.created_by, c.created_at, c.updated_at,
+			c.last_message_at, c.last_message_seq, c.last_message_preview, c.last_message_sender_id,
+			m.last_read_seq
 		FROM conversations c
 		INNER JOIN conversation_members m ON m.conversation_id = c.id
 		WHERE c.id = $1 AND m.user_id = $2
-	`, conversationID, userID).Scan(&c.ID, &title, &c.CreatedBy, &c.CreatedAt, &c.UpdatedAt)
+	`, conversationID, userID).Scan(
+		&c.ID, &title, &c.CreatedBy, &c.CreatedAt, &c.UpdatedAt,
+		&c.LastMessageAt, &c.LastMessageSeq, &c.LastMessagePreview, &c.LastMessageSenderID,
+		&c.LastReadSeq,
+	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return domain.Conversation{}, apperr.NotFound("conversation not found")

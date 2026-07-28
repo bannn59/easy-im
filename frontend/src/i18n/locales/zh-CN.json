@@ -65,7 +65,9 @@
     "messagePlaceholder": "写一条消息",
     "sending": "发送中…",
     "send": "发送",
-    "signOut": "退出"
+    "signOut": "退出",
+    "youPreview": "你: {{body}}",
+    "unreadAria": "{{count}} 条未读"
   },
   "chat": {
     "reply": "回复",
