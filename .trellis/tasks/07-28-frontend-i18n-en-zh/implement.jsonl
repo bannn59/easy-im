@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend stack assumptions and localization note"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "Where to place i18n module relative to app/api/shared"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Component and a11y expectations for LanguageSwitcher"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Forbidden patterns and quality bar while editing pages"}
+{"file": ".trellis/tasks/07-28-frontend-i18n-en-zh/design.md", "reason": "Technical design: deps, layout, language resolution, error policy"}
+{"file": ".trellis/tasks/07-28-frontend-i18n-en-zh/implement.md", "reason": "Ordered checklist and validation commands"}

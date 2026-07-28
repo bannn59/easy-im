@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Quality bar for reviewing UI string and component changes"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "a11y and component conventions for LanguageSwitcher"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "Verify i18n files land in agreed layout"}
+{"file": ".trellis/tasks/07-28-frontend-i18n-en-zh/prd.md", "reason": "Acceptance criteria AC1-AC7"}
+{"file": ".trellis/tasks/07-28-frontend-i18n-en-zh/design.md", "reason": "Error-message policy and language resolution must hold"}
