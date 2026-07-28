@@ -4,8 +4,8 @@ Greenfield instant-messaging monorepo (scaffold stage).
 
 | Path | Stack | Status |
 |------|--------|--------|
-| `backend/` | Go, stdlib HTTP | `cmd/api` + `GET /healthz` |
-| `frontend/` | Vite + React + TypeScript | Shell + home + API health probe |
+| `backend/` | Go, stdlib HTTP | API + `/healthz` + `/readyz` + auth (M1) |
+| `frontend/` | Vite + React + TypeScript | Shell + login/register + `/app` |
 | `.trellis/` | Trellis workflow + coding specs | Active |
 
 No chat product features yet (auth, conversations, messaging, WebSocket gateway).
@@ -24,9 +24,12 @@ cd backend && go run ./cmd/migrate up
 
 ```bash
 cd backend
+export DATABASE_URL='postgres://easyim:easyim@localhost:5433/easyim?sslmode=disable'
+export AUTH_JWT_SECRET='easyim-dev-secret-change-me'
 go run ./cmd/api
 # http://localhost:8080/healthz → {"status":"ok"}
 # with DATABASE_URL: http://localhost:8080/readyz → {"status":"ok"}
+# auth: POST /v1/auth/register|login, GET /v1/me
 ```
 
 ### Web
