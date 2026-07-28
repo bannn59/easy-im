@@ -57,7 +57,7 @@
     "loadingSession": "Loading session…",
     "homeEyebrow": "Workspace",
     "homeTitle": "Select a conversation",
-    "homeLead": "Create a conversation with another registered user email, or open one from the list. Send messages over HTTP; live push comes later.",
+    "homeLead": "Create a conversation with another registered user email, or open one from the list.",
     "roomEyebrow": "Conversation",
     "loadingConversation": "Loading conversation…",
     "noMessages": "No messages yet.",
@@ -66,6 +66,16 @@
     "sending": "Sending…",
     "send": "Send",
     "signOut": "Sign out"
+  },
+  "chat": {
+    "reply": "Reply",
+    "cancelReply": "Cancel",
+    "replyingTo": "Replying to {{name}}",
+    "emoji": "Emoji",
+    "retry": "Retry",
+    "sending": "Sending…",
+    "composerHint": "Enter to send · Shift+Enter for newline",
+    "groupUntitled": "Group chat"
   },
   "common": {
     "loading": "Loading…",

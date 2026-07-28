@@ -57,7 +57,7 @@
     "loadingSession": "正在验证登录状态…",
     "homeEyebrow": "工作区",
     "homeTitle": "选择一个会话",
-    "homeLead": "用已注册用户的邮箱创建会话，或从列表中打开。消息经 HTTP 发送；实时推送稍后到来。",
+    "homeLead": "用已注册用户的邮箱创建会话，或从列表中打开。",
     "roomEyebrow": "会话",
     "loadingConversation": "正在加载会话…",
     "noMessages": "还没有消息。",
@@ -66,6 +66,16 @@
     "sending": "发送中…",
     "send": "发送",
     "signOut": "退出"
+  },
+  "chat": {
+    "reply": "回复",
+    "cancelReply": "取消",
+    "replyingTo": "回复 {{name}}",
+    "emoji": "表情",
+    "retry": "重试",
+    "sending": "发送中…",
+    "composerHint": "Enter 发送 · Shift+Enter 换行",
+    "groupUntitled": "群聊"
   },
   "common": {
     "loading": "加载中…",

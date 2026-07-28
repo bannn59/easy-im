@@ -1,5 +1,11 @@
 import { apiRequest } from './http';
 
+export type ReplyTo = {
+  id: string;
+  sender_id: string;
+  body: string;
+};
+
 export type Message = {
   id: string;
   conversation_id: string;
@@ -8,6 +14,7 @@ export type Message = {
   client_msg_id: string;
   seq: number;
   created_at: string;
+  reply_to?: ReplyTo | null;
 };
 
 export function listMessages(
@@ -28,7 +35,7 @@ export function listMessages(
 export function sendMessage(
   token: string,
   conversationId: string,
-  body: { body: string; client_msg_id: string },
+  body: { body: string; client_msg_id: string; reply_to_message_id?: string },
 ): Promise<Message> {
   return apiRequest(`/v1/conversations/${conversationId}/messages`, {
     method: 'POST',
