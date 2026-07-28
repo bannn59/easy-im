@@ -13,16 +13,37 @@ go run ./cmd/api
 
 Optional: `PORT=8081 go run ./cmd/api`
 
-With database:
+With database + auth:
 
 ```bash
 # from repo root
 docker compose up -d
 export DATABASE_URL='postgres://easyim:easyim@localhost:5433/easyim?sslmode=disable'
+export AUTH_JWT_SECRET='easyim-dev-secret-change-me'   # required for auth (dev only)
+# or: export AUTH_DEV_INSECURE=1   # uses the same default secret
 cd backend
 go run ./cmd/migrate up
-DATABASE_URL="$DATABASE_URL" go run ./cmd/api
+DATABASE_URL="$DATABASE_URL" AUTH_JWT_SECRET="$AUTH_JWT_SECRET" go run ./cmd/api
 ```
+
+### Auth API (M1)
+
+```bash
+# register
+curl -s -X POST localhost:8080/v1/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"you@example.com","password":"password12"}'
+
+# login
+curl -s -X POST localhost:8080/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"you@example.com","password":"password12"}'
+
+# me
+curl -s localhost:8080/v1/me -H "Authorization: Bearer $TOKEN"
+```
+
+Env: `AUTH_JWT_SECRET` (or `AUTH_DEV_INSECURE=1`), optional `AUTH_TOKEN_TTL` (Go duration, default `168h`).
 
 ## Migrations (goose)
 

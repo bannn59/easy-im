@@ -33,17 +33,31 @@ func main() {
 		defer pool.Close()
 		log.Info("database connected", "service", "api")
 	} else {
-		log.Warn("DATABASE_URL unset; /readyz will be unavailable", "service", "api")
+		log.Warn("DATABASE_URL unset; /readyz and auth will be unavailable", "service", "api")
+	}
+
+	if cfg.AuthJWTSecret == "" {
+		log.Warn("AUTH_JWT_SECRET unset; auth routes return 503 (set AUTH_DEV_INSECURE=1 for local default)", "service", "api")
 	}
 
 	srv := &http.Server{
-		Addr:              cfg.Addr,
-		Handler:           app.NewAPIHandler(app.APIOptions{Pool: pool, Log: log}),
+		Addr: cfg.Addr,
+		Handler: app.NewAPIHandler(app.APIOptions{
+			Pool:          pool,
+			Log:           log,
+			AuthJWTSecret: cfg.AuthJWTSecret,
+			AuthTokenTTL:  cfg.AuthTokenTTL,
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	go func() {
-		log.Info("api listening", "service", "api", "addr", cfg.Addr, "db_configured", pool != nil)
+		log.Info("api listening",
+			"service", "api",
+			"addr", cfg.Addr,
+			"db_configured", pool != nil,
+			"auth_configured", cfg.AuthJWTSecret != "",
+		)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Error("listen failed", "error", err)
 			os.Exit(1)

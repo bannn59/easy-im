@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"os"
@@ -9,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"easy-im/backend/internal/apperr"
+	"easy-im/backend/internal/service"
 )
 
 // Deps are optional process dependencies for HTTP handlers.
@@ -16,6 +16,8 @@ type Deps struct {
 	// Pool may be nil when DATABASE_URL is unset.
 	Pool *pgxpool.Pool
 	Log  *slog.Logger
+	// Auth may be nil when JWT secret or DB is unset.
+	Auth *service.AuthService
 }
 
 // NewMux registers HTTP routes and standard middleware for the API process.
@@ -28,6 +30,11 @@ func NewMux(deps Deps) http.Handler {
 	mux.HandleFunc("/healthz", Healthz)
 	mux.Handle("/readyz", Readyz(deps.Pool))
 
+	auth := &AuthHandler{Auth: deps.Auth}
+	mux.HandleFunc("/v1/auth/register", auth.Register)
+	mux.HandleFunc("/v1/auth/login", auth.Login)
+	mux.HandleFunc("/v1/me", auth.Me)
+
 	var h http.Handler = mux
 	h = withCORS(h)
 	h = Recover(deps.Log, h)
@@ -38,8 +45,8 @@ func NewMux(deps Deps) http.Handler {
 func withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Request-ID")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Request-ID, Authorization")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -63,8 +70,6 @@ func Readyz(pool *pgxpool.Pool) http.Handler {
 			WriteError(w, r, apperr.Unavailable("database unavailable"))
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(HealthResponse{Status: "ok"})
+		writeJSON(w, http.StatusOK, HealthResponse{Status: "ok"})
 	})
 }
