@@ -9,7 +9,7 @@
 Landed: Postgres via **pgx** pool (`internal/db`), **goose** SQL under `backend/migrations/`,
 `cmd/migrate`, and local `docker-compose.yml` (host port **5433**).
 
-Schema so far: `users`, `conversations`, `conversation_members`, `messages` (with `next_seq` on conversations), and optional `messages.reply_to_message_id`.
+Schema so far: `users`, `conversations`, `conversation_members`, `messages` (with `next_seq` on conversations), optional `messages.reply_to_message_id`, `friend_requests`, and `friendships`.
 
 Repo pattern: `internal/repo` with explicit SQL; domain types in `internal/domain`.
 
@@ -100,7 +100,20 @@ Partial index: `idx_messages_reply_to` on `reply_to_message_id` where not null.
 | List order | `ORDER BY COALESCE(last_message_at, updated_at) DESC` |
 | Out of scope | Peer read receipts / read WS events |
 
-List DTO includes `last_message`, `unread_count`, optional `member_count` + `last_message.sender_email` for group preview prefixes.
+List DTO includes `last_message`, `unread_count`, optional `member_count` + `last_message.sender_email` for group preview prefixes, and `members` (batch-loaded) so the sidebar can title DMs by peer email / groups as untitled group.
+
+### Friend requests + friendships (landed)
+
+| Store | Columns / rule |
+|-------|----------------|
+| `friend_requests` | directed `from_user_id` → `to_user_id`; status `pending` / `accepted` / `rejected`; `from_user_id <> to_user_id` |
+| Pending uniqueness | partial unique index on `(from_user_id, to_user_id) WHERE status = 'pending'` |
+| Service rule | also reject reverse pending for the same pair (either side already asked) |
+| Reject / re-request | reject leaves no friendship; a later request may insert a new pending row |
+| `friendships` | undirected edge with canonical `user_a_id < user_b_id` (UUID string order); PK `(user_a_id, user_b_id)` |
+| Accept | same tx: mark request accepted + insert friendship (`ON CONFLICT DO NOTHING`) + clear reverse pending if any |
+
+Discovery is email-only via `users.email`. Delete-friend / block / notes are out of scope for the relation MVP.
 
 ### Transactions
 
@@ -108,6 +121,7 @@ Use transactions for multi-table writes that must commit together, e.g.:
 
 - create conversation + owner membership
 - insert message + bump `next_seq` + **update conversation last_*** + **advance sender last_read_seq**
+- accept friend request + insert `friendships` edge
 
 Keep transactions short. Do **not** hold a DB transaction open while waiting on Redis, MQ, or WS write.
 
