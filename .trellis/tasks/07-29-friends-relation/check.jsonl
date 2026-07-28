@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Backend test/lint expectations for new friend code"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Error contract consistency review"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Schema/migration review for friend tables"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Frontend quality bar for friends UI"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "API client and UI types for friend DTOs"}
+{"file": ".trellis/tasks/07-29-friends-relation/prd.md", "reason": "Acceptance criteria checklist for verification"}

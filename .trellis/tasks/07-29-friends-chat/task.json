@@ -1,0 +1,29 @@
+{
+  "id": "friends-chat",
+  "name": "friends-chat",
+  "title": "好友关系驱动聊天（替代邮箱建会话）",
+  "description": "",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "ban",
+  "assignee": "ban",
+  "createdAt": "2026-07-29",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "07-29-friends-relation",
+    "07-29-friends-open-chat"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

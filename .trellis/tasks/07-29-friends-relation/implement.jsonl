@@ -1,0 +1,9 @@
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Where to place friend domain/repo/service/handler layers"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Migrations, table naming, constraints for friend requests/edges"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "HTTP/error mapping for duplicate request, self-add, unknown email"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Test and service-layer quality bar"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "Where friends UI/API client lives"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "List/pending state patterns consistent with conversations"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Minimal friends UI components"}
+{"file": ".trellis/tasks/07-29-friends-relation/prd.md", "reason": "Authoritative requirements and AC for this child task"}
+{"file": ".trellis/tasks/07-29-friends-chat/prd.md", "reason": "Parent decisions: email-only discovery, request-accept model, out of scope"}
