@@ -29,21 +29,39 @@ export function HealthPage() {
   }, []);
 
   return (
-    <section>
-      <h1>API health</h1>
-      <p>
-        Probing <code>{base}/healthz</code>
+    <section className="page">
+      <p className="page__eyebrow">System</p>
+      <h1 className="page__title">API status</h1>
+      <p className="page__lead">
+        A live probe of the backend liveness endpoint. No decoration, just the signal.
       </p>
-      {state.kind === 'loading' && <p>Loading…</p>}
-      {state.kind === 'ok' && (
-        <p className="ok">
-          status: <strong>{state.status}</strong>
-        </p>
-      )}
+
+      <div className="panel" aria-live="polite">
+        <div className="panel__row">
+          <span className="panel__key">Endpoint</span>
+          <span className="panel__val">
+            <code>
+              {base}/healthz
+            </code>
+          </span>
+        </div>
+        <div className="panel__row">
+          <span className="panel__key">Result</span>
+          <span className="panel__val">
+            {state.kind === 'loading' && <span className="loading">Checking…</span>}
+            {state.kind === 'ok' && (
+              <span className="ok">
+                {state.status}
+              </span>
+            )}
+            {state.kind === 'error' && <span className="err">{state.message}</span>}
+          </span>
+        </div>
+      </div>
+
       {state.kind === 'error' && (
-        <p className="err">
-          Failed: {state.message}. Start the API with{' '}
-          <code>cd backend && go run ./cmd/api</code>.
+        <p className="page__body">
+          Start the API with <code>cd backend && go run ./cmd/api</code>, then refresh this page.
         </p>
       )}
     </section>

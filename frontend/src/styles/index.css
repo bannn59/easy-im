@@ -1,100 +1,421 @@
+/* Minimalism design tokens — quiet gallery, not empty-for-empty's-sake */
 :root {
-  color-scheme: light dark;
-  font-family: system-ui, sans-serif;
-  line-height: 1.5;
+  color-scheme: light;
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --ink: #111111;
+  --ink-secondary: #5c5c5c;
+  --ink-tertiary: #8a8a8a;
+  --line: #e8e8e8;
+  --line-strong: #d0d0d0;
+  --focus: #111111;
+  --danger: #8b2e2e;
+  --ok: #1f5c3a;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2.5rem;
+  --space-7: 4rem;
+  --measure: 36rem;
+  --shell: 42rem;
+  --font: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  --ease: 180ms ease;
+  --radius: 0;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 body {
   margin: 0;
+  min-height: 100dvh;
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--bg);
 }
 
+#root {
+  min-height: 100dvh;
+}
+
+a {
+  color: var(--ink);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  transition: color var(--ease), text-decoration-color var(--ease);
+}
+
+a:hover {
+  color: var(--ink-secondary);
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 1px solid var(--focus);
+  outline-offset: 2px;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  color: var(--ink-secondary);
+}
+
+/* —— Shell / layout —— */
 .shell {
-  max-width: 42rem;
+  max-width: var(--shell);
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: var(--space-5) var(--space-4) var(--space-7);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 
 .shell__header {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  border-bottom: 1px solid #8884;
-  padding-bottom: 0.75rem;
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-6);
+  border-bottom: 1px solid var(--line);
 }
 
-.shell__nav {
-  display: flex;
-  gap: 1rem;
-}
-
-.shell__nav a {
-  color: inherit;
+.shell__brand {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink);
   text-decoration: none;
 }
 
-.shell__nav a.active {
-  font-weight: 700;
-  text-decoration: underline;
-}
-
-code {
-  font-size: 0.9em;
-}
-
-.ok {
-  color: #0a7;
-}
-
-.err {
-  color: #c33;
-}
-
-.muted {
-  opacity: 0.8;
+.shell__brand:hover {
+  color: var(--ink);
 }
 
 .shell__nav {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--space-4);
+}
+
+.shell__nav a {
+  font-size: 0.875rem;
+  color: var(--ink-secondary);
+  text-decoration: none;
+}
+
+.shell__nav a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.22em;
+}
+
+.shell__nav a.active {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.22em;
 }
 
 .shell__nav .linkish {
   background: none;
   border: none;
   padding: 0;
-  color: inherit;
+  margin: 0;
   font: inherit;
+  font-size: 0.875rem;
+  color: var(--ink-secondary);
   cursor: pointer;
+  text-decoration: none;
+  transition: color var(--ease);
+}
+
+.shell__nav .linkish:hover {
+  color: var(--ink);
   text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.22em;
+}
+
+.shell__main {
+  flex: 1;
+  width: 100%;
+}
+
+/* —— Typography rhythm —— */
+.page {
+  max-width: var(--measure);
+}
+
+.page__eyebrow {
+  margin: 0 0 var(--space-3);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-tertiary);
+  font-weight: 500;
+}
+
+.page__title {
+  margin: 0 0 var(--space-4);
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.page__lead {
+  margin: 0 0 var(--space-5);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--ink-secondary);
+  max-width: 34rem;
+}
+
+.page__body {
+  margin: 0 0 var(--space-4);
+  color: var(--ink-secondary);
+  max-width: 34rem;
+}
+
+.page__meta {
+  margin: 0 0 var(--space-3);
+  font-size: 0.875rem;
+  color: var(--ink-tertiary);
+}
+
+.page__list {
+  margin: 0 0 var(--space-5);
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.page__list li {
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9375rem;
+  color: var(--ink-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.page__list strong {
+  font-weight: 500;
+  color: var(--ink);
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+}
+
+.page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.muted {
+  color: var(--ink-tertiary);
+  font-size: 0.875rem;
+}
+
+.ok {
+  color: var(--ok);
+}
+
+.err {
+  color: var(--danger);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* —— Buttons (quiet, high contrast) —— */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.5rem 1.1rem;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--surface);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--ease), color var(--ease), border-color var(--ease),
+    opacity var(--ease);
+}
+
+.btn:hover:not(:disabled) {
+  background: transparent;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.btn--ghost:hover:not(:disabled) {
+  border-color: var(--ink);
+  background: transparent;
+  color: var(--ink);
+}
+
+/* —— Auth form —— */
+.auth {
+  max-width: 22rem;
 }
 
 .auth__form {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  max-width: 20rem;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
 }
 
-.auth__form label {
+.field {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-2);
 }
 
-.auth__form input {
-  padding: 0.4rem 0.5rem;
+.field__label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-tertiary);
+}
+
+.field__input {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.5rem 0;
   font: inherit;
+  font-size: 1rem;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  transition: border-color var(--ease);
 }
 
-.auth__form button,
-.shell__main button {
-  padding: 0.45rem 0.75rem;
-  font: inherit;
-  cursor: pointer;
-  width: fit-content;
+.field__input::placeholder {
+  color: var(--ink-tertiary);
 }
 
+.field__input:hover {
+  border-bottom-color: var(--ink-secondary);
+}
+
+.field__input:focus {
+  outline: none;
+  border-bottom-color: var(--ink);
+}
+
+.auth__switch {
+  margin: 0 0 var(--space-2);
+  font-size: 0.875rem;
+  color: var(--ink-secondary);
+}
+
+.auth__switch a {
+  color: var(--ink);
+}
+
+/* —— Status panel (health / session meta) —— */
+.panel {
+  margin-top: var(--space-5);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.panel__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  font-size: 0.875rem;
+  margin: 0 0 var(--space-2);
+}
+
+.panel__key {
+  color: var(--ink-tertiary);
+  min-width: 5rem;
+}
+
+.panel__val {
+  color: var(--ink);
+  word-break: break-all;
+}
+
+.panel__val code {
+  color: var(--ink);
+}
+
+/* —— Loading —— */
+.loading {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ink-tertiary);
+  letter-spacing: 0.02em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .shell {
+    padding: var(--space-4) var(--space-4) var(--space-6);
+  }
+
+  .shell__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .shell__nav {
+    justify-content: flex-start;
+  }
+}

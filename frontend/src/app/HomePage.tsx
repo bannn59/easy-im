@@ -4,30 +4,44 @@ import { useSession } from './Session';
 export function HomePage() {
   const session = useSession();
   return (
-    <section>
-      <h1>easy-im</h1>
-      <p>
-        Scaffold + auth (M1). Chat product features (conversations, messaging) come in later
-        roadmap tasks.
+    <section className="page">
+      <p className="page__eyebrow">Instant messaging</p>
+      <h1 className="page__title">A quiet place to talk.</h1>
+      <p className="page__lead">
+        easy-im is building a focused messaging stack. Milestone one is identity: register, sign
+        in, and keep a stable session. Conversations and realtime delivery come next.
       </p>
-      <ul>
+
+      <ul className="page__list">
         <li>
-          Backend: <code>cd backend && go run ./cmd/api</code>
+          <strong>Now</strong>
+          Account, session, and API health.
         </li>
         <li>
-          Needs DB + <code>AUTH_JWT_SECRET</code> (or <code>AUTH_DEV_INSECURE=1</code>) for auth.
+          <strong>Next</strong>
+          Conversations, message history, then live delivery.
         </li>
       </ul>
-      {session.user ? (
-        <p>
-          Signed in as <strong>{session.user.email}</strong> — open the{' '}
-          <Link to="/app">app shell</Link>.
-        </p>
-      ) : (
-        <p>
-          <Link to="/login">Sign in</Link> or <Link to="/register">create an account</Link>.
-        </p>
-      )}
+
+      <div className="page__actions">
+        {session.user ? (
+          <>
+            <Link className="btn" to="/app">
+              Open workspace
+            </Link>
+            <span className="muted">Signed in as {session.user.email}</span>
+          </>
+        ) : (
+          <>
+            <Link className="btn" to="/register">
+              Create account
+            </Link>
+            <Link className="btn btn--ghost" to="/login">
+              Sign in
+            </Link>
+          </>
+        )}
+      </div>
     </section>
   );
 }

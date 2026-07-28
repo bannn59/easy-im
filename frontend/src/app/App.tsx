@@ -1,4 +1,4 @@
-import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, NavLink, Route, Routes, Link } from 'react-router-dom';
 import { AuthPage } from './AuthPage';
 import { AppShell } from './AppShell';
 import { HealthPage } from './HealthPage';
@@ -9,15 +9,17 @@ function Header() {
   const session = useSession();
   return (
     <header className="shell__header">
-      <strong>easy-im</strong>
-      <nav className="shell__nav">
+      <Link to="/" className="shell__brand">
+        easy-im
+      </Link>
+      <nav className="shell__nav" aria-label="Primary">
         <NavLink to="/" end>
           Home
         </NavLink>
-        <NavLink to="/health">API health</NavLink>
+        <NavLink to="/health">Status</NavLink>
         {session.user ? (
           <>
-            <NavLink to="/app">App</NavLink>
+            <NavLink to="/app">Workspace</NavLink>
             <button type="button" className="linkish" onClick={() => session.logout()}>
               Sign out
             </button>

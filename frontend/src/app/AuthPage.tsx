@@ -39,46 +39,64 @@ export function AuthPage({ mode }: { mode: Mode }) {
     }
   }
 
+  const isLogin = mode === 'login';
+
   return (
-    <section className="auth">
-      <h1>{mode === 'login' ? 'Sign in' : 'Create account'}</h1>
-      <p className="muted">
-        {mode === 'login' ? (
+    <section className="page auth">
+      <p className="page__eyebrow">Account</p>
+      <h1 className="page__title">{isLogin ? 'Sign in' : 'Create account'}</h1>
+      <p className="auth__switch">
+        {isLogin ? (
           <>
-            No account? <Link to="/register">Register</Link>
+            New here? <Link to="/register">Create an account</Link>
           </>
         ) : (
           <>
-            Already registered? <Link to="/login">Sign in</Link>
+            Already have an account? <Link to="/login">Sign in</Link>
           </>
         )}
       </p>
-      <form className="auth__form" onSubmit={onSubmit}>
-        <label>
-          Email
+
+      <form className="auth__form" onSubmit={onSubmit} noValidate>
+        <div className="field">
+          <label className="field__label" htmlFor="auth-email">
+            Email
+          </label>
           <input
+            id="auth-email"
+            className="field__input"
             type="email"
             autoComplete="email"
             value={email}
             onChange={(ev) => setEmail(ev.target.value)}
             required
           />
-        </label>
-        <label>
-          Password
+        </div>
+        <div className="field">
+          <label className="field__label" htmlFor="auth-password">
+            Password
+          </label>
           <input
+            id="auth-password"
+            className="field__input"
             type="password"
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+            autoComplete={isLogin ? 'current-password' : 'new-password'}
             value={password}
             onChange={(ev) => setPassword(ev.target.value)}
             minLength={8}
             required
           />
-        </label>
-        {error && <p className="err">{error}</p>}
-        <button type="submit" disabled={submitting}>
-          {submitting ? 'Please wait…' : mode === 'login' ? 'Sign in' : 'Register'}
-        </button>
+        </div>
+        {error && (
+          <p className="err" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="page__actions">
+          <button className="btn" type="submit" disabled={submitting}>
+            {submitting ? 'Working…' : isLogin ? 'Sign in' : 'Create account'}
+          </button>
+        </div>
       </form>
     </section>
   );
