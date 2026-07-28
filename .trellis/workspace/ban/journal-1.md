@@ -70,3 +70,44 @@ Surveyed easy-im for user-perceptible features; 0 implemented (no backend/fronte
 
 - Scaffold backend/ (Go) and frontend/ (Vite React+TS)
 - Re-run feature map after first user-facing slice lands
+
+
+## Session 3: Monorepo scaffold backend+frontend
+
+**Date**: 2026-07-28
+**Task**: Monorepo scaffold backend+frontend
+**Branch**: `main`
+
+### Summary
+
+Scaffolded easy-im monorepo: Go API with /healthz, Vite React-TS shell (home + health probe), root README, spec bootstrap notes, and check fixes. Archived monorepo-scaffold.
+
+### Main Changes
+
+- backend/: go module, cmd/api, config, handler healthz + tests, migrations placeholder
+- frontend/: Vite React-TS, app routes, api client, realtime placeholder, shared layout
+- Root README + directory-structure bootstrap status updates
+- Check: healthz encode handling + shared hooks/lib .gitkeep
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6b1fdd7` | (see git log) |
+| `ae3de24` | (see git log) |
+| `706344f` | (see git log) |
+| `0302230` | (see git log) |
+| `7c84abb` | (see git log) |
+
+### Testing
+
+- [OK] go test ./...; go build ./cmd/api; curl /healthz; npm run build
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- Auth minimal slice or conversation CRUD
+- Re-run feature map after first user-facing feature
