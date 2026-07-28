@@ -4,6 +4,7 @@
     "home": "Home",
     "status": "Status",
     "workspace": "Workspace",
+    "friends": "Friends",
     "signIn": "Sign in",
     "register": "Register",
     "signOut": "Sign out"
@@ -78,6 +79,24 @@
     "sending": "Sending…",
     "composerHint": "Enter to send · Shift+Enter for newline",
     "groupUntitled": "Group chat"
+  },
+  "friends": {
+    "eyebrow": "Contacts",
+    "title": "Friends",
+    "lead": "Add people by their registered email. They must accept before you become friends.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "friend@example.com",
+    "sendRequest": "Send request",
+    "sending": "Sending…",
+    "requestSent": "Friend request sent.",
+    "incoming": "Incoming requests",
+    "list": "Friends",
+    "accept": "Accept",
+    "reject": "Reject",
+    "accepted": "Friend request accepted.",
+    "rejected": "Friend request rejected.",
+    "noIncoming": "No pending requests.",
+    "noFriends": "No friends yet."
   },
   "common": {
     "loading": "Loading…",

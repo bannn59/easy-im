@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../i18n/LanguageSwitcher';
 import { AuthPage } from './AuthPage';
 import { ConversationRoom } from '../features/chat';
+import { FriendsPage } from '../features/friends';
 import { AppShell, ConversationHome } from './AppShell';
 import { HealthPage } from './HealthPage';
 import { HomePage } from './HomePage';
@@ -25,6 +26,7 @@ function Header() {
           {session.user ? (
             <>
               <NavLink to="/app">{t('nav.workspace')}</NavLink>
+              <NavLink to="/friends">{t('nav.friends')}</NavLink>
               <button type="button" className="linkish" onClick={() => session.logout()}>
                 {t('nav.signOut')}
               </button>
@@ -58,6 +60,7 @@ export function App() {
                 <Route index element={<ConversationHome />} />
                 <Route path="c/:id" element={<ConversationRoom />} />
               </Route>
+              <Route path="/friends" element={<FriendsPage />} />
             </Routes>
           </main>
         </div>

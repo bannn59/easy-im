@@ -14,12 +14,13 @@ import (
 
 // Deps are optional process dependencies for HTTP handlers.
 type Deps struct {
-	Pool *pgxpool.Pool
-	Log  *slog.Logger
-	Auth *service.AuthService
-	Conv *service.ConversationService
-	Msg  *service.MessageService
-	Hub  *hub.Hub
+	Pool    *pgxpool.Pool
+	Log     *slog.Logger
+	Auth    *service.AuthService
+	Conv    *service.ConversationService
+	Msg     *service.MessageService
+	Friends *service.FriendService
+	Hub     *hub.Hub
 }
 
 // NewMux registers HTTP routes and standard middleware for the API process.
@@ -39,6 +40,7 @@ func NewMux(deps Deps) http.Handler {
 
 	conv := &ConversationHandler{Conv: deps.Conv}
 	msg := &MessageHandler{Msg: deps.Msg}
+	friends := &FriendHandler{Friends: deps.Friends}
 	require := RequireUser(deps.Auth)
 
 	mux.Handle("POST /v1/conversations", require(http.HandlerFunc(conv.Create)))
@@ -58,6 +60,16 @@ func NewMux(deps Deps) http.Handler {
 	mux.Handle("POST /v1/conversations/{id}/read", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conv.MarkRead(w, r, r.PathValue("id"))
 	})))
+
+	mux.Handle("POST /v1/friends/requests", require(http.HandlerFunc(friends.SendRequest)))
+	mux.Handle("GET /v1/friends/requests/incoming", require(http.HandlerFunc(friends.ListIncoming)))
+	mux.Handle("POST /v1/friends/requests/{id}/accept", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		friends.Accept(w, r, r.PathValue("id"))
+	})))
+	mux.Handle("POST /v1/friends/requests/{id}/reject", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		friends.Reject(w, r, r.PathValue("id"))
+	})))
+	mux.Handle("GET /v1/friends", require(http.HandlerFunc(friends.ListFriends)))
 
 	ws := &WSHandler{Auth: deps.Auth, Hub: deps.Hub}
 	mux.Handle("/v1/ws", ws)

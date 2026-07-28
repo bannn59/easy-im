@@ -4,6 +4,7 @@
     "home": "首页",
     "status": "状态",
     "workspace": "工作区",
+    "friends": "好友",
     "signIn": "登录",
     "register": "注册",
     "signOut": "退出"
@@ -78,6 +79,24 @@
     "sending": "发送中…",
     "composerHint": "Enter 发送 · Shift+Enter 换行",
     "groupUntitled": "群聊"
+  },
+  "friends": {
+    "eyebrow": "通讯录",
+    "title": "好友",
+    "lead": "用对方注册邮箱发起好友请求，对方同意后才会成为好友。",
+    "emailLabel": "邮箱",
+    "emailPlaceholder": "friend@example.com",
+    "sendRequest": "发送请求",
+    "sending": "发送中…",
+    "requestSent": "好友请求已发送。",
+    "incoming": "待处理请求",
+    "list": "好友列表",
+    "accept": "同意",
+    "reject": "拒绝",
+    "accepted": "已同意好友请求。",
+    "rejected": "已拒绝好友请求。",
+    "noIncoming": "暂无待处理请求。",
+    "noFriends": "还没有好友。"
   },
   "common": {
     "loading": "加载中…",
