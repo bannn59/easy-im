@@ -6,9 +6,9 @@
 
 ## Bootstrap status
 
-**Landed (single process dev)**: `cmd/api` serves HTTP auth/conversations/messages and `GET /v1/ws`. In-process `internal/hub` fans out `message.created` to member user connections. No separate `cmd/gateway` / MQ yet — package boundaries should still allow a later split.
+**Landed (single process dev)**: `cmd/api` serves HTTP auth/conversations/messages and `GET /v1/ws`. In-process `internal/hub` fans out `message.created`, `message.read`, `typing.started`/`typing.stopped` to member user connections. Inbound WS frames (`typing.start`/`typing.stop`) are parsed and dispatched. No separate `cmd/gateway` / MQ yet — package boundaries should still allow a later split.
 
-Message send path today: **HTTP only** for writes; WS is **server push**. Clients de-dupe by `id` / `client_msg_id`.
+Message send path today: **HTTP only** for writes; WS is **bidirectional** (typing commands inbound, push events outbound). Clients de-dupe by `id` / `client_msg_id`.
 
 ---
 
@@ -35,12 +35,26 @@ HTTP Upgrade /v1/ws?token=… (or Authorization) → hub register(userID) → pu
 - Authenticate before treating the conn as a user socket.
 - Hub maps `userID → set of *Client` (multi-device ready).
 - Reconnect is client-driven with backoff (`frontend/src/realtime`).
-- Inbound client frames are currently discarded (push-only).
+- Inbound client frames are parsed by `Hub.ReadPump` and dispatched via `Hub.FrameHandler`.
+  Currently supported inbound types: `typing.start`, `typing.stop`.
+- Server auto-expires typing state after 3 seconds (`Hub.SetTyping` / `ClearTyping`).
 
 ### Frame envelope (current)
 
+**Server → Client:**
+
 ```json
 { "type": "message.created", "payload": { /* message DTO */ } }
+{ "type": "message.read", "payload": { "conversation_id", "reader_id", "last_read_seq" } }
+{ "type": "typing.started", "payload": { "conversation_id", "user_id" } }
+{ "type": "typing.stopped", "payload": { "conversation_id", "user_id" } }
+```
+
+**Client → Server:**
+
+```json
+{ "type": "typing.start", "payload": { "conversation_id" } }
+{ "type": "typing.stop", "payload": { "conversation_id" } }
 ```
 
 Future versioning may add `v` / `request_id`; consumers must ignore unknown fields.
@@ -50,8 +64,9 @@ Future versioning may add `v` / `request_id`; consumers must ignore unknown fiel
 | Use WebSocket | Use HTTP |
 |---------------|----------|
 | Live message push | History pagination / search |
-| Typing, presence, receipts stream (future) | Login, token refresh, **send message** (current) |
-| Lightweight client commands that need low latency | Large media upload (object storage + HTTP) |
+| Typing indicators (inbound + relay) | Login, token refresh, **send message** (current) |
+| Read receipt broadcasts (triggered by HTTP `POST .../read`) | Large media upload (object storage + HTTP) |
+| Lightweight client commands that need low latency | Presence / settings (future) |
 
 Do not force all CRUD through WS.
 
