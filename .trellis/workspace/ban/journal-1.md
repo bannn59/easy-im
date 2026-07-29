@@ -470,3 +470,25 @@ Shipped sidebar WeChat-surface list: denormalized conversation last_message on s
 ### Status
 
 [OK] **Completed**
+
+
+## Session 16: P5.a Read receipts + P5.b Typing indicators
+
+**Date**: 2026-07-29
+**Task**: P5.a Read receipts + P5.b Typing indicators
+**Branch**: `main`
+
+### Summary
+
+Implemented bidirectional WebSocket protocol (hub inbound frame parsing + FrameHandler), read receipt broadcasts (message.read via MarkRead), typing indicators (typing.start/stop with 3s server timeout, 4s client timeout), and frontend UI (gray checkmarks, animated dots). Updated realtime-messaging and frontend specs.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `39141d1` | (see git log) |
+| `7fd2a77` | (see git log) |
+
+### Status
+
+[OK] **Completed**

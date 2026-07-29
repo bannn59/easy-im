@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 15
+- **Total Sessions**: 16
 - **Last Active**: 2026-07-29
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~472 | Active |
+| `journal-1.md` | ~494 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 16 | 2026-07-29 | P5.a Read receipts + P5.b Typing indicators | `39141d1`, `7fd2a77` | `main` |
 | 15 | 2026-07-29 | 好友驱动开聊（替代邮箱建会话） | `88c4084`, `2ef1a01`, `1fcd66e` | `main` |
 | 14 | 2026-07-29 | 好友关系 MVP（请求/同意/列表） | `bce98da`, `1cd9637`, `4149fe4` | `main` |
 | 13 | 2026-07-28 | Conversation list preview and self-only unread | `8f50d35`, `2949dde` | `main` |
