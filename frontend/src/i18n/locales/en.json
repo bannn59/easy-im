@@ -74,7 +74,10 @@
     "retry": "Retry",
     "sending": "Sending…",
     "composerHint": "Enter to send · Shift+Enter for newline",
-    "groupUntitled": "Group chat"
+    "groupUntitled": "Group chat",
+    "typingOne": "{{name}} is typing…",
+    "typingTwo": "{{name}} and {{other}} are typing…",
+    "typingMany": "Several people are typing…"
   },
   "friends": {
     "eyebrow": "Contacts",

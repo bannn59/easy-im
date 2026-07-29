@@ -28,11 +28,13 @@ func NewAPIHandler(opts APIOptions) http.Handler {
 	var conv *service.ConversationService
 	var msg *service.MessageService
 	var friends *service.FriendService
+	var members service.MembershipChecker
 	if opts.Pool != nil && opts.AuthJWTSecret != "" {
 		users := repo.NewUserRepo(opts.Pool)
 		convs := repo.NewConversationRepo(opts.Pool)
 		messages := repo.NewMessageRepo(opts.Pool)
 		friendRepo := repo.NewFriendRepo(opts.Pool)
+		members = convs
 		auth = service.NewAuthService(
 			users,
 			service.AuthConfig{
@@ -40,7 +42,7 @@ func NewAPIHandler(opts APIOptions) http.Handler {
 				TokenTTL:  opts.AuthTokenTTL,
 			},
 		)
-		conv = service.NewConversationService(convs, users, friendRepo)
+		conv = service.NewConversationService(convs, users, friendRepo, rtHub)
 		msg = service.NewMessageService(messages, convs, rtHub)
 		friends = service.NewFriendService(friendRepo, users)
 	}
@@ -52,5 +54,6 @@ func NewAPIHandler(opts APIOptions) http.Handler {
 		Msg:     msg,
 		Friends: friends,
 		Hub:     rtHub,
+		Members: members,
 	})
 }

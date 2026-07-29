@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"context"
+	"encoding/json"
+	"log/slog"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -16,8 +19,10 @@ var upgrader = websocket.Upgrader{
 
 // WSHandler upgrades to websocket after JWT auth.
 type WSHandler struct {
-	Auth *service.AuthService
-	Hub  *hub.Hub
+	Auth    *service.AuthService
+	Hub     *hub.Hub
+	Members service.MembershipChecker
+	Log     *slog.Logger
 }
 
 func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -41,5 +46,64 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	client := &hub.Client{UserID: uid, Conn: conn, Send: make(chan []byte, 16)}
 	h.Hub.Register(client)
 	go client.WritePump()
-	client.ReadPump(func() { h.Hub.Unregister(client) })
+	h.Hub.ReadPump(client, func() { h.Hub.Unregister(client) })
+}
+
+// HandleFrame dispatches inbound WebSocket frames by type.
+func (h *WSHandler) HandleFrame(userID string, f hub.InboundFrame) {
+	switch f.Type {
+	case "typing.start", "typing.stop":
+		h.handleTyping(userID, f)
+	default:
+		if h.Log != nil {
+			h.Log.Warn("unknown ws frame type", "type", f.Type, "user_id", userID)
+		}
+	}
+}
+
+type typingPayload struct {
+	ConversationID string `json:"conversation_id"`
+}
+
+func (h *WSHandler) handleTyping(userID string, f hub.InboundFrame) {
+	if h.Members == nil || h.Hub == nil {
+		return
+	}
+	var p typingPayload
+	if err := json.Unmarshal(f.Payload, &p); err != nil || p.ConversationID == "" {
+		return
+	}
+	ctx := context.Background()
+	ok, err := h.Members.IsMember(ctx, p.ConversationID, userID)
+	if err != nil || !ok {
+		return
+	}
+	memberIDs, err := h.Members.ListMemberIDs(ctx, p.ConversationID)
+	if err != nil {
+		return
+	}
+
+	eventType := "typing.started"
+	if f.Type == "typing.stop" {
+		eventType = "typing.stopped"
+	}
+
+	payload, _ := json.Marshal(map[string]string{
+		"conversation_id": p.ConversationID,
+		"user_id":         userID,
+	})
+	h.Hub.BroadcastToConversation(memberIDs, userID, hub.Event{Type: eventType, Payload: payload})
+
+	if f.Type == "typing.start" {
+		convID := p.ConversationID
+		h.Hub.SetTyping(convID, userID, func() {
+			stopPayload, _ := json.Marshal(map[string]string{
+				"conversation_id": convID,
+				"user_id":         userID,
+			})
+			h.Hub.BroadcastToConversation(memberIDs, userID, hub.Event{Type: "typing.stopped", Payload: stopPayload})
+		})
+	} else {
+		h.Hub.ClearTyping(p.ConversationID, userID)
+	}
 }

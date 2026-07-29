@@ -3,12 +3,19 @@ package hub
 import (
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
 
 // Event is a server-pushed frame.
 type Event struct {
+	Type    string          `json:"type"`
+	Payload json.RawMessage `json:"payload"`
+}
+
+// InboundFrame is a client-to-server frame.
+type InboundFrame struct {
 	Type    string          `json:"type"`
 	Payload json.RawMessage `json:"payload"`
 }
@@ -24,10 +31,20 @@ type Client struct {
 type Hub struct {
 	mu      sync.RWMutex
 	clients map[string]map[*Client]struct{}
+
+	// FrameHandler is called for each valid inbound frame. Set by the WS handler.
+	FrameHandler func(userID string, frame InboundFrame)
+
+	// Typing timers: key = "conversationID:userID".
+	typingMu     sync.Mutex
+	typingTimers map[string]*time.Timer
 }
 
 func New() *Hub {
-	return &Hub{clients: map[string]map[*Client]struct{}{}}
+	return &Hub{
+		clients:      map[string]map[*Client]struct{}{},
+		typingTimers: map[string]*time.Timer{},
+	}
 }
 
 func (h *Hub) Register(c *Client) {
@@ -77,6 +94,45 @@ func (h *Hub) PublishToUsers(userIDs []string, event Event) {
 	}
 }
 
+// BroadcastToConversation sends event to all given members except exceptUserID.
+func (h *Hub) BroadcastToConversation(memberIDs []string, exceptUserID string, event Event) {
+	var targets []string
+	for _, id := range memberIDs {
+		if id != exceptUserID {
+			targets = append(targets, id)
+		}
+	}
+	if len(targets) > 0 {
+		h.PublishToUsers(targets, event)
+	}
+}
+
+// SetTyping arms (or resets) a server-side typing timeout for the given
+// conversation+user. onExpired is called when the timeout fires.
+func (h *Hub) SetTyping(conversationID, userID string, onExpired func()) {
+	key := conversationID + ":" + userID
+	h.typingMu.Lock()
+	defer h.typingMu.Unlock()
+	if t, ok := h.typingTimers[key]; ok {
+		t.Stop()
+	}
+	h.typingTimers[key] = time.AfterFunc(3*time.Second, func() {
+		h.ClearTyping(conversationID, userID)
+		onExpired()
+	})
+}
+
+// ClearTyping cancels any active typing timer for the given conversation+user.
+func (h *Hub) ClearTyping(conversationID, userID string) {
+	key := conversationID + ":" + userID
+	h.typingMu.Lock()
+	defer h.typingMu.Unlock()
+	if t, ok := h.typingTimers[key]; ok {
+		t.Stop()
+		delete(h.typingTimers, key)
+	}
+}
+
 func (c *Client) WritePump() {
 	for msg := range c.Send {
 		if err := c.Conn.WriteMessage(websocket.TextMessage, msg); err != nil {
@@ -85,12 +141,23 @@ func (c *Client) WritePump() {
 	}
 }
 
-// ReadPump reads until disconnect.
-func (c *Client) ReadPump(onClose func()) {
+// ReadPump reads inbound frames until disconnect, dispatching via FrameHandler.
+func (h *Hub) ReadPump(c *Client, onClose func()) {
 	defer onClose()
 	for {
-		if _, _, err := c.Conn.ReadMessage(); err != nil {
+		_, raw, err := c.Conn.ReadMessage()
+		if err != nil {
 			return
+		}
+		var f InboundFrame
+		if err := json.Unmarshal(raw, &f); err != nil {
+			continue // ignore malformed frames
+		}
+		if f.Type == "" {
+			continue
+		}
+		if h.FrameHandler != nil {
+			h.FrameHandler(c.UserID, f)
 		}
 	}
 }

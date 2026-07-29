@@ -94,6 +94,18 @@ func (m *memConv) MarkRead(_ context.Context, conversationID, userID string, seq
 	return cur, nil
 }
 
+func (m *memConv) ListMemberIDs(_ context.Context, conversationID string) ([]string, error) {
+	set, ok := m.members[conversationID]
+	if !ok {
+		return nil, nil
+	}
+	var out []string
+	for id := range set {
+		out = append(out, id)
+	}
+	return out, nil
+}
+
 func (m *memConv) FindDirectBetween(_ context.Context, userID1, userID2 string) (domain.Conversation, error) {
 	var best *domain.Conversation
 	for id, set := range m.members {
@@ -194,7 +206,7 @@ func TestOpenDirectCreateListACL(t *testing.T) {
 	}
 	convs := newMemConv()
 	friends := newMemFriends([2]string{"ua", "ub"})
-	svc := NewConversationService(convs, users, friends)
+	svc := NewConversationService(convs, users, friends, nil)
 
 	c, err := svc.OpenDirect(context.Background(), "ua", "ub")
 	if err != nil {
@@ -221,7 +233,7 @@ func TestOpenDirectIdempotent(t *testing.T) {
 	}
 	convs := newMemConv()
 	friends := newMemFriends([2]string{"ua", "ub"})
-	svc := NewConversationService(convs, users, friends)
+	svc := NewConversationService(convs, users, friends, nil)
 
 	c1, err := svc.OpenDirect(context.Background(), "ua", "ub")
 	if err != nil {
@@ -249,7 +261,7 @@ func TestOpenDirectRejects(t *testing.T) {
 	}
 	convs := newMemConv()
 	friends := newMemFriends([2]string{"ua", "ub"})
-	svc := NewConversationService(convs, users, friends)
+	svc := NewConversationService(convs, users, friends, nil)
 
 	if _, err := svc.OpenDirect(context.Background(), "ua", "ua"); !errors.Is(err, apperr.ErrInvalid) {
 		t.Fatalf("want invalid for self, got %v", err)
@@ -271,7 +283,7 @@ func TestOpenDirectPicksLatestAmongMulti(t *testing.T) {
 	}
 	convs := newMemConv()
 	friends := newMemFriends([2]string{"ua", "ub"})
-	svc := NewConversationService(convs, users, friends)
+	svc := NewConversationService(convs, users, friends, nil)
 
 	old := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	mid := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
@@ -314,7 +326,7 @@ func TestOpenDirectPicksLatestCreatedWhenNoMessages(t *testing.T) {
 	}
 	convs := newMemConv()
 	friends := newMemFriends([2]string{"ua", "ub"})
-	svc := NewConversationService(convs, users, friends)
+	svc := NewConversationService(convs, users, friends, nil)
 
 	t1 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	t2 := time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC)
@@ -343,7 +355,7 @@ func TestConversationMarkRead(t *testing.T) {
 	}
 	convs := newMemConv()
 	friends := newMemFriends([2]string{"ua", "ub"})
-	svc := NewConversationService(convs, users, friends)
+	svc := NewConversationService(convs, users, friends, nil)
 	c, err := svc.OpenDirect(context.Background(), "ua", "ub")
 	if err != nil {
 		t.Fatal(err)

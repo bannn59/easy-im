@@ -74,7 +74,10 @@
     "retry": "重试",
     "sending": "发送中…",
     "composerHint": "Enter 发送 · Shift+Enter 换行",
-    "groupUntitled": "群聊"
+    "groupUntitled": "群聊",
+    "typingOne": "{{name}} 正在输入…",
+    "typingTwo": "{{name}} 和 {{other}} 正在输入…",
+    "typingMany": "多人正在输入…"
   },
   "friends": {
     "eyebrow": "通讯录",

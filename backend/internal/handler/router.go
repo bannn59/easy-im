@@ -21,6 +21,7 @@ type Deps struct {
 	Msg     *service.MessageService
 	Friends *service.FriendService
 	Hub     *hub.Hub
+	Members service.MembershipChecker // for WS frame validation
 }
 
 // NewMux registers HTTP routes and standard middleware for the API process.
@@ -73,7 +74,8 @@ func NewMux(deps Deps) http.Handler {
 		friends.OpenConversation(w, r, r.PathValue("userID"))
 	})))
 
-	ws := &WSHandler{Auth: deps.Auth, Hub: deps.Hub}
+	ws := &WSHandler{Auth: deps.Auth, Hub: deps.Hub, Members: deps.Members, Log: deps.Log}
+	deps.Hub.FrameHandler = ws.HandleFrame
 	mux.Handle("/v1/ws", ws)
 
 	var h http.Handler = mux

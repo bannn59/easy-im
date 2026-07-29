@@ -64,6 +64,11 @@ export function MessageBubble({
           </div>
           <div className="bubble-meta">
             <time dateTime={message.created_at}>{formatTime(message.created_at)}</time>
+            {mine && status === 'sent' && (
+              <span className="bubble-check" data-read={message.isRead ? 'true' : 'false'}>
+                {message.isRead ? '✓✓' : '✓'}
+              </span>
+            )}
             {status === 'pending' && <span>{t('chat.sending')}</span>}
             {status === 'failed' && (
               <button type="button" className="linkish" onClick={() => onRetry?.(message)}>

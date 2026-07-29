@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { getConversation, markConversationRead, type Conversation } from '../../api/conversations';
 import { listMessages, sendMessage, type Message } from '../../api/messages';
 import { ApiError } from '../../api/http';
-import { connectRealtime } from '../../realtime';
+import { connectRealtime, sendFrame } from '../../realtime';
 import { useSession } from '../../app/Session';
 import { Composer, type ComposerReply } from './Composer';
 import { MessageList } from './MessageList';
@@ -37,6 +37,10 @@ export function ConversationRoom() {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [reply, setReply] = useState<ComposerReply | null>(null);
+  const [peerReadSeq, setPeerReadSeq] = useState<Map<string, number>>(new Map());
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const typingTimers = useRef<Map<string, number>>(new Map());
+  const lastTypingSent = useRef(0);
   const listRef = useRef<HTMLUListElement>(null!);
   const stickToBottom = useRef(true);
 
@@ -123,13 +127,52 @@ export function ConversationRoom() {
     if (!session.token || !id || !conv) return;
     const token = session.token;
     const convId = id;
+    const selfId = session.user?.id;
     const stop = connectRealtime(token, {
       onMessageCreated: (m) => {
         if (m.conversation_id !== convId) return;
         setMessages((prev) => mergeMessage(prev, toChatItem(m)));
         requestAnimationFrame(() => scrollToBottom(false));
-        // Keep self last_read_seq current while viewing (list badge uses server count on refresh).
         void markConversationRead(token, convId, m.seq).catch(() => undefined);
+      },
+      onMessageRead: (data) => {
+        if (data.conversation_id !== convId) return;
+        setPeerReadSeq((prev) => {
+          const next = new Map(prev);
+          next.set(data.reader_id, Math.max(data.last_read_seq, next.get(data.reader_id) ?? 0));
+          return next;
+        });
+      },
+      onTypingStarted: (data) => {
+        if (data.conversation_id !== convId || data.user_id === selfId) return;
+        setTypingUsers((prev) => new Set(prev).add(data.user_id));
+        // Client-side 4-second timeout
+        const existing = typingTimers.current.get(data.user_id);
+        if (existing) window.clearTimeout(existing);
+        typingTimers.current.set(
+          data.user_id,
+          window.setTimeout(() => {
+            setTypingUsers((prev) => {
+              const next = new Set(prev);
+              next.delete(data.user_id);
+              return next;
+            });
+            typingTimers.current.delete(data.user_id);
+          }, 4000),
+        );
+      },
+      onTypingStopped: (data) => {
+        if (data.conversation_id !== convId) return;
+        setTypingUsers((prev) => {
+          const next = new Set(prev);
+          next.delete(data.user_id);
+          return next;
+        });
+        const existing = typingTimers.current.get(data.user_id);
+        if (existing) {
+          window.clearTimeout(existing);
+          typingTimers.current.delete(data.user_id);
+        }
       },
     });
     const timer = window.setInterval(() => {
@@ -138,6 +181,9 @@ export function ConversationRoom() {
     return () => {
       stop();
       window.clearInterval(timer);
+      // Clean up typing timers
+      for (const t of typingTimers.current.values()) window.clearTimeout(t);
+      typingTimers.current.clear();
     };
   }, [session.token, id, conv, loadMessages, scrollToBottom]);
 
@@ -200,6 +246,23 @@ export function ConversationRoom() {
 
   function onSend() {
     void doSend(text, reply, newClientMsgId());
+    sendFrame('typing.stop', { conversation_id: id });
+  }
+
+  function onTextChangeWithTyping(v: string) {
+    setText(v);
+    if (!id) return;
+    if (v.trim()) {
+      // Send typing.start (debounced: skip if sent within last 2s)
+      const now = Date.now();
+      if (now - lastTypingSent.current > 2000) {
+        lastTypingSent.current = now;
+        sendFrame('typing.start', { conversation_id: id });
+      }
+    } else {
+      sendFrame('typing.stop', { conversation_id: id });
+      lastTypingSent.current = 0;
+    }
   }
 
   function onRetry(m: ChatItem) {
@@ -245,6 +308,43 @@ export function ConversationRoom() {
   const members = conv.members ?? [];
   const isGroup = members.length > 2;
   const peer = members.find((m) => m.id !== session.user?.id);
+
+  // Compute min peer read seq for checkmark display
+  const effectiveReadSeq = (() => {
+    if (peerReadSeq.size === 0) return 0;
+    if (!isGroup) {
+      // DM: use peer's read seq directly
+      return peer ? (peerReadSeq.get(peer.id) ?? 0) : 0;
+    }
+    // Group: min of all other members' read seqs
+    let min = Infinity;
+    for (const m of members) {
+      if (m.id === session.user?.id) continue;
+      const seq = peerReadSeq.get(m.id) ?? 0;
+      if (seq < min) min = seq;
+    }
+    return min === Infinity ? 0 : min;
+  })();
+
+  const messagesWithRead = messages.map((m) =>
+    m.sender_id === session.user?.id && m.status === 'sent' && m.seq <= effectiveReadSeq
+      ? { ...m, isRead: true }
+      : m,
+  );
+
+  // Typing indicator text
+  const typingLabel = (() => {
+    if (typingUsers.size === 0) return null;
+    const names = [...typingUsers]
+      .map((uid) => {
+        const m = members.find((x) => x.id === uid);
+        return m ? shortName(m.email) || m.email : uid.slice(0, 8);
+      })
+      .slice(0, 3);
+    if (names.length === 1) return t('chat.typingOne', { name: names[0] });
+    if (names.length === 2) return t('chat.typingTwo', { name: names[0], other: names[1] });
+    return t('chat.typingMany');
+  })();
   const explicitTitle = conv.title?.trim() ?? '';
   const title = explicitTitle
     ? explicitTitle
@@ -269,7 +369,7 @@ export function ConversationRoom() {
       </header>
 
       <MessageList
-        messages={messages}
+        messages={messagesWithRead}
         selfId={session.user?.id}
         memberLabel={memberLabel}
         showSenderNames={isGroup}
@@ -279,6 +379,15 @@ export function ConversationRoom() {
         emptyLabel={t('workspace.noMessages')}
       />
 
+      {typingLabel && (
+        <div className="typing-indicator" aria-live="polite">
+          <span className="typing-indicator__dots">
+            <span /><span /><span />
+          </span>
+          <span className="typing-indicator__text">{typingLabel}</span>
+        </div>
+      )}
+
       {error && (
         <p className="err room__err" role="alert">
           {error}
@@ -287,7 +396,7 @@ export function ConversationRoom() {
 
       <Composer
         text={text}
-        onTextChange={setText}
+        onTextChange={onTextChangeWithTyping}
         reply={reply}
         onClearReply={() => setReply(null)}
         sending={sending}
