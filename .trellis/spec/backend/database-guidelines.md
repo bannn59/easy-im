@@ -9,7 +9,7 @@
 Landed: Postgres via **pgx** pool (`internal/db`), **goose** SQL under `backend/migrations/`,
 `cmd/migrate`, and local `docker-compose.yml` (host port **5433**).
 
-Schema so far: `users`, `conversations`, `conversation_members`, `messages` (with `next_seq` on conversations), optional `messages.reply_to_message_id`, `friend_requests`, and `friendships`.
+Schema so far: `users` (with `display_name`), `conversations`, `conversation_members`, `messages` (with `next_seq` on conversations), optional `messages.reply_to_message_id`, `friend_requests`, and `friendships`.
 
 Repo pattern: `internal/repo` with explicit SQL; domain types in `internal/domain`.
 
