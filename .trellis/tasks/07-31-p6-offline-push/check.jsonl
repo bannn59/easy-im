@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/backend/realtime-messaging.md", "reason": "校验 WS/presence 协议一致性；推送触发不能破坏在线 WS 即时路径"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "校验 push_subscriptions 迁移遵循命名/索引/外键约定"}
+{"file": ".trellis/spec/backend/auth-session.md", "reason": "校验推送端点鉴权与 cookie 会话一致；无 Authorization 泄漏"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "校验 push 端点错误响应符合统一 JSON 错误形状"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "校验 worker 日志结构（service 字段、request/conn ID 约定）符合规范"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "校验消息 DTO 在 HTTP/WS/Kafka push 三层形状一致"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "校验设置页开关状态与 Session/前端状态管理一致"}

@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/backend/realtime-messaging.md", "reason": "WS/presence 协议与进程边界；推送事件流将扩展此 spec，worker 进程落地需先读现有进程拆分约定"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Schema/迁移/命名约定；新增 push_subscriptions 表与 repo 遵循命名与索引规则"}
+{"file": ".trellis/spec/backend/auth-session.md", "reason": "cookie 会话与 CORS；推送订阅端点鉴权复用 cookie，WS 读 cookie 与推送端点一致"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "domain error → HTTP；push 端点与 worker 的错误处理遵循统一错误形状"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "跨 HTTP/WS/DB/Kafka 多层的功能，先读该 guide 避免边界与重复逻辑问题"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "前端状态与 realtime merge；设置页推送开关接入现有 /settings 与 Session 的约定"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "feature 目录约定；PushSettings 放 features/settings 的归属确认"}
