@@ -48,6 +48,7 @@ HTTP Upgrade /v1/ws?token=… (or Authorization) → hub register(userID) → pu
 { "type": "message.read", "payload": { "conversation_id", "reader_id", "last_read_seq" } }
 { "type": "typing.started", "payload": { "conversation_id", "user_id" } }
 { "type": "typing.stopped", "payload": { "conversation_id", "user_id" } }
+{ "type": "presence.changed", "payload": { "user_id", "online" } }
 ```
 
 **Client → Server:**
@@ -66,7 +67,8 @@ Future versioning may add `v` / `request_id`; consumers must ignore unknown fiel
 | Live message push | History pagination / search |
 | Typing indicators (inbound + relay) | Login, token refresh, **send message** (current) |
 | Read receipt broadcasts (triggered by HTTP `POST .../read`) | Large media upload (object storage + HTTP) |
-| Lightweight client commands that need low latency | Presence / settings (future) |
+| Live presence changes (friend-scoped) | **Presence initial state** (`GET /v1/friends` includes `online`) |
+| Lightweight client commands that need low latency | Presence / settings queries (future) |
 
 Do not force all CRUD through WS.
 
@@ -203,9 +205,11 @@ for _, m := range list { repo.FindByID(m.ReplyTo…) }
 
 ## Presence
 
-- Presence is **ephemeral** (Redis). DB may store last_seen asynchronously.
+- Presence is **ephemeral**. DB may store last_seen asynchronously (not yet implemented).
 - Online = has at least one healthy gateway/hub conn.
-- Broadcast presence changes through MQ or Redis pub/sub at multi-node scale.
+- **Landed (single process)**: hub tracks the online set and fires `PresenceBroadcaster` on 0↔1 connection transitions. `IsOnline` / `OnlineUserIDs` expose the set. `presence.changed` is broadcast to the user's friends via `ListFriendIDs`.
+- **Never use presence as an ACL or message-history source of truth.**
+- Multi-node fan-out would go through MQ or Redis pub/sub (future).
 
 ---
 
