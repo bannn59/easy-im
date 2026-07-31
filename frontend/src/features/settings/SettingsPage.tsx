@@ -5,6 +5,7 @@ import { fetchMe } from '../../api/auth';
 import { changePassword, updateProfile } from '../../api/settings';
 import { ApiError } from '../../api/http';
 import { useSession } from '../../app/Session';
+import { PushSettings } from './PushSettings';
 
 export function SettingsPage() {
   const session = useSession();
@@ -202,6 +203,8 @@ export function SettingsPage() {
           </p>
         )}
       </section>
+
+      <PushSettings />
 
       {error && (
         <p className="err" role="alert">

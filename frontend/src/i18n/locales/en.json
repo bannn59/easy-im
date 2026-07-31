@@ -131,6 +131,15 @@
     "newPassword": "New password",
     "confirmPassword": "Confirm new password",
     "passwordMismatch": "Passwords do not match.",
-    "passwordSaved": "Password updated."
+    "passwordSaved": "Password updated.",
+    "pushNotifications": "Push notifications",
+    "pushDescription": "Receive a system notification when you get a new message while away.",
+    "pushEnable": "Enable",
+    "pushDisable": "Disable",
+    "pushEnabled": "Push notifications on.",
+    "pushDisabled": "Push notifications off.",
+    "pushUnsupported": "This browser does not support push notifications.",
+    "pushDenied": "Notifications permission was denied in the browser.",
+    "pushFailed": "Could not enable push notifications."
   }
 }

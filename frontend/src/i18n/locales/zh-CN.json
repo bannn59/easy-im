@@ -131,6 +131,15 @@
     "newPassword": "新密码",
     "confirmPassword": "确认新密码",
     "passwordMismatch": "两次输入的密码不一致。",
-    "passwordSaved": "密码已更新。"
+    "passwordSaved": "密码已更新。",
+    "pushNotifications": "推送通知",
+    "pushDescription": "离开页面时收到新消息的系统通知。",
+    "pushEnable": "开启",
+    "pushDisable": "关闭",
+    "pushEnabled": "推送通知已开启。",
+    "pushDisabled": "推送通知已关闭。",
+    "pushUnsupported": "当前浏览器不支持推送通知。",
+    "pushDenied": "浏览器已拒绝通知权限。",
+    "pushFailed": "无法开启推送通知。"
   }
 }
