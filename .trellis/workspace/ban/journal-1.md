@@ -604,3 +604,27 @@ Added offline Web Push delivery. Backend: push_subscriptions table + POST/DELETE
 ### Status
 
 [OK] **Completed**
+
+
+## Session 21: P6 Offline push (Web Push PWA)
+
+**Date**: 2026-07-31
+**Task**: P6 Offline push (Web Push PWA)
+**Branch**: `main`
+
+### Summary
+
+Implemented offline Web Push delivery. Backend: push_subscriptions table + API, VAPID+aes128gcm send core, session aggregator, Kafka bus (im.messages/im.presence) produced by cmd/api consumed by cmd/worker; worker pushes only offline members, prunes 410/404 subs. Frontend: SW + manifest, /settings push toggle. docker-compose KRaft Kafka. go 1.25.2. E2E verified: offline push delivered, stale sub pruned, online skipped.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3cfbd83` | (see git log) |
+| `94f4bcf` | (see git log) |
+| `4ee6b57` | (see git log) |
+| `1962e0b` | (see git log) |
+
+### Status
+
+[OK] **Completed**
