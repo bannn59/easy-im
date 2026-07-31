@@ -492,3 +492,25 @@ Implemented bidirectional WebSocket protocol (hub inbound frame parsing + FrameH
 ### Status
 
 [OK] **Completed**
+
+
+## Session 17: P5.c Online presence (presence dots)
+
+**Date**: 2026-07-31
+**Task**: P5.c Online presence (presence dots)
+**Branch**: `main`
+
+### Summary
+
+Implemented online/offline presence dots: hub IsOnline/OnlineUserIDs + PresenceBroadcaster on 0-1 transitions, friend-scoped presence.changed broadcasts via ListFriendIDs, online field on /v1/friends and conversation members. Refactored frontend to a single app-wide WebSocket (RealtimeProvider/useRealtime), fixing the two-socket activeWs race. Presence dots in friends list and DM header.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a31ce78` | (see git log) |
+| `a92cd42` | (see git log) |
+
+### Status
+
+[OK] **Completed**
