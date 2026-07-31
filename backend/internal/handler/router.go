@@ -37,12 +37,14 @@ func NewMux(deps Deps) http.Handler {
 	auth := &AuthHandler{Auth: deps.Auth}
 	mux.HandleFunc("/v1/auth/register", auth.Register)
 	mux.HandleFunc("/v1/auth/login", auth.Login)
-	mux.HandleFunc("/v1/me", auth.Me)
+	require := RequireUser(deps.Auth)
+	mux.Handle("GET /v1/me", require(http.HandlerFunc(auth.Me)))
+	mux.Handle("PATCH /v1/me/profile", require(http.HandlerFunc(auth.UpdateProfile)))
+	mux.Handle("POST /v1/me/password", require(http.HandlerFunc(auth.ChangePassword)))
 
 	conv := &ConversationHandler{Conv: deps.Conv, Hub: deps.Hub}
 	msg := &MessageHandler{Msg: deps.Msg}
 	friends := &FriendHandler{Friends: deps.Friends, Conv: deps.Conv, Hub: deps.Hub}
-	require := RequireUser(deps.Auth)
 
 	mux.Handle("GET /v1/conversations", require(http.HandlerFunc(conv.List)))
 	mux.Handle("GET /v1/conversations/{id}", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -89,7 +91,7 @@ func NewMux(deps Deps) http.Handler {
 func withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Request-ID, Authorization")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)

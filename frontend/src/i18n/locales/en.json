@@ -5,6 +5,7 @@
     "status": "Status",
     "workspace": "Workspace",
     "friends": "Friends",
+    "settings": "Settings",
     "signIn": "Sign in",
     "register": "Register",
     "signOut": "Sign out"
@@ -110,5 +111,21 @@
   },
   "language": {
     "switcherAria": "Language"
+  },
+  "settings": {
+    "eyebrow": "Account",
+    "title": "Settings",
+    "profile": "Profile",
+    "email": "Email",
+    "memberSince": "Member since",
+    "displayName": "Display name",
+    "save": "Save",
+    "nameSaved": "Display name updated.",
+    "changePassword": "Change password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm new password",
+    "passwordMismatch": "Passwords do not match.",
+    "passwordSaved": "Password updated."
   }
 }

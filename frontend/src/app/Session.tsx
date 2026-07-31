@@ -20,24 +20,26 @@ type SessionState = {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  setUser: (u: PublicUser | null) => void;
+  refreshUser: () => Promise<void>;
 };
 
 const SessionContext = createContext<SessionState | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
-  const [user, setUser] = useState<PublicUser | null>(null);
+  const [user, setUserState] = useState<PublicUser | null>(null);
   const [loading, setLoading] = useState(Boolean(localStorage.getItem(TOKEN_KEY)));
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
-    setUser(null);
+    setUserState(null);
   }, []);
 
   useEffect(() => {
     if (!token) {
-      setUser(null);
+      setUserState(null);
       setLoading(false);
       return;
     }
@@ -46,7 +48,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     authApi
       .fetchMe(token)
       .then((u) => {
-        if (!cancelled) setUser(u);
+        if (!cancelled) setUserState(u);
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -66,7 +68,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const applyAuth = useCallback(async (res: authApi.TokenResponse) => {
     localStorage.setItem(TOKEN_KEY, res.access_token);
     setToken(res.access_token);
-    setUser(res.user);
+    setUserState(res.user);
+  }, []);
+
+  const setUser = useCallback((u: PublicUser | null) => setUserState(u), []);
+
+  const refreshUser = useCallback(async () => {
+    const t = localStorage.getItem(TOKEN_KEY);
+    if (!t) return;
+    const u = await authApi.fetchMe(t);
+    setUserState({ id: u.id, email: u.email, display_name: u.display_name });
   }, []);
 
   const login = useCallback(
@@ -86,8 +97,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ token, user, loading, login, register, logout }),
-    [token, user, loading, login, register, logout],
+    () => ({ token, user, loading, login, register, logout, setUser, refreshUser }),
+    [token, user, loading, login, register, logout, setUser, refreshUser],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

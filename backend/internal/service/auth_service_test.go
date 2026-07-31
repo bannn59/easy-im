@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,6 +46,36 @@ func (m *memUsers) FindByID(_ context.Context, id string) (domain.User, error) {
 		return domain.User{}, apperr.NotFound("user not found")
 	}
 	return rec.User, nil
+}
+
+func (m *memUsers) FindRecordByID(_ context.Context, id string) (domain.UserRecord, error) {
+	rec, ok := m.byID[id]
+	if !ok {
+		return domain.UserRecord{}, apperr.NotFound("user not found")
+	}
+	return rec, nil
+}
+
+func (m *memUsers) UpdateDisplayName(_ context.Context, id, displayName string, updatedAt time.Time) (domain.User, error) {
+	rec, ok := m.byID[id]
+	if !ok {
+		return domain.User{}, apperr.NotFound("user not found")
+	}
+	rec.DisplayName = displayName
+	rec.UpdatedAt = updatedAt
+	m.byID[id] = rec
+	return rec.User, nil
+}
+
+func (m *memUsers) UpdatePassword(_ context.Context, id, hash string, updatedAt time.Time) error {
+	rec, ok := m.byID[id]
+	if !ok {
+		return apperr.NotFound("user not found")
+	}
+	rec.PasswordHash = hash
+	rec.UpdatedAt = updatedAt
+	m.byID[id] = rec
+	return nil
 }
 
 func testAuth(t *testing.T) *AuthService {
@@ -121,5 +152,75 @@ func TestAuthNotConfigured(t *testing.T) {
 	svc := NewAuthService(newMemUsers(), AuthConfig{})
 	if _, err := svc.Register(context.Background(), "a@b.co", "password12"); !errors.Is(err, apperr.ErrUnavailable) {
 		t.Fatalf("want unavailable, got %v", err)
+	}
+}
+
+func TestUpdateDisplayName(t *testing.T) {
+	svc := testAuth(t)
+	ctx := context.Background()
+	reg, err := svc.Register(ctx, "a@b.co", "password12")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	u, err := svc.UpdateDisplayName(ctx, reg.User.ID, "  Alice  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.DisplayName != "Alice" {
+		t.Fatalf("display name = %q want Alice", u.DisplayName)
+	}
+
+	// Clearing name is allowed.
+	u, err = svc.UpdateDisplayName(ctx, reg.User.ID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.DisplayName != "" {
+		t.Fatalf("display name = %q want empty", u.DisplayName)
+	}
+
+	// Oversized name rejected.
+	long := strings.Repeat("阿", 65)
+	if _, err := svc.UpdateDisplayName(ctx, reg.User.ID, long); !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("want invalid for too-long name, got %v", err)
+	}
+
+	// Missing user unauthorized.
+	if _, err := svc.UpdateDisplayName(ctx, "", "x"); !errors.Is(err, apperr.ErrUnauthorized) {
+		t.Fatalf("want unauthorized for empty user, got %v", err)
+	}
+}
+
+func TestChangePassword(t *testing.T) {
+	svc := testAuth(t)
+	ctx := context.Background()
+	reg, err := svc.Register(ctx, "a@b.co", "password12")
+	if err != nil {
+		t.Fatal(err)
+	}
+	uid := reg.User.ID
+
+	// Wrong current password rejected.
+	if err := svc.ChangePassword(ctx, uid, "wrongpass", "newpassword1"); !errors.Is(err, apperr.ErrUnauthorized) {
+		t.Fatalf("want unauthorized for wrong current, got %v", err)
+	}
+
+	// Short new password rejected.
+	if err := svc.ChangePassword(ctx, uid, "password12", "short"); !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("want invalid for short new password, got %v", err)
+	}
+
+	// Correct flow.
+	if err := svc.ChangePassword(ctx, uid, "password12", "newpassword1"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Old password no longer works; new one does.
+	if _, err := svc.Login(ctx, "a@b.co", "password12"); !errors.Is(err, apperr.ErrUnauthorized) {
+		t.Fatalf("want unauthorized for old password, got %v", err)
+	}
+	if _, err := svc.Login(ctx, "a@b.co", "newpassword1"); err != nil {
+		t.Fatalf("login with new password failed: %v", err)
 	}
 }

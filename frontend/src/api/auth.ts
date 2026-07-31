@@ -3,7 +3,15 @@ import { apiRequest } from './http';
 export type PublicUser = {
   id: string;
   email: string;
+  display_name?: string;
   online?: boolean;
+};
+
+export type Profile = {
+  id: string;
+  email: string;
+  display_name: string;
+  created_at: string;
 };
 
 export type TokenResponse = {
@@ -26,6 +34,6 @@ export function login(email: string, password: string): Promise<TokenResponse> {
   });
 }
 
-export function fetchMe(token: string): Promise<PublicUser> {
-  return apiRequest<PublicUser>('/v1/me', { method: 'GET', token });
+export function fetchMe(token: string): Promise<Profile> {
+  return apiRequest<Profile>('/v1/me', { method: 'GET', token });
 }

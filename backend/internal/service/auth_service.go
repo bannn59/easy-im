@@ -20,6 +20,9 @@ type UserStore interface {
 	Create(ctx context.Context, rec domain.UserRecord) error
 	FindByEmail(ctx context.Context, email string) (domain.UserRecord, error)
 	FindByID(ctx context.Context, id string) (domain.User, error)
+	FindRecordByID(ctx context.Context, id string) (domain.UserRecord, error)
+	UpdateDisplayName(ctx context.Context, id, displayName string, updatedAt time.Time) (domain.User, error)
+	UpdatePassword(ctx context.Context, id, hash string, updatedAt time.Time) error
 }
 
 // AuthConfig holds token signing settings.
@@ -170,6 +173,52 @@ func (s *AuthService) Me(ctx context.Context, userID string) (domain.User, error
 		return domain.User{}, err
 	}
 	return u, nil
+}
+
+const displayNameMaxRunes = 64
+
+// UpdateDisplayName sets the user's display name (empty clears it).
+func (s *AuthService) UpdateDisplayName(ctx context.Context, userID, displayName string) (domain.User, error) {
+	if err := s.ensureReady(); err != nil {
+		return domain.User{}, err
+	}
+	if userID == "" {
+		return domain.User{}, apperr.Unauthorized("missing credentials")
+	}
+	name := strings.TrimSpace(displayName)
+	if len([]rune(name)) > displayNameMaxRunes {
+		return domain.User{}, apperr.Invalid("display name too long")
+	}
+	return s.users.UpdateDisplayName(ctx, userID, name, s.now().UTC())
+}
+
+// ChangePassword verifies the current password and replaces it with newPass.
+// Existing tokens remain valid (multi-device revocation is a later concern).
+func (s *AuthService) ChangePassword(ctx context.Context, userID, current, newPass string) error {
+	if err := s.ensureReady(); err != nil {
+		return err
+	}
+	if userID == "" {
+		return apperr.Unauthorized("missing credentials")
+	}
+	if err := validatePassword(newPass); err != nil {
+		return err
+	}
+	rec, err := s.users.FindRecordByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, apperr.ErrNotFound) {
+			return apperr.Unauthorized("invalid credentials")
+		}
+		return err
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(rec.PasswordHash), []byte(current)); err != nil {
+		return apperr.Unauthorized("current password is incorrect")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPass), bcrypt.DefaultCost)
+	if err != nil {
+		return apperr.Internal("hash password failed", err)
+	}
+	return s.users.UpdatePassword(ctx, userID, string(hash), s.now().UTC())
 }
 
 type accessClaims struct {

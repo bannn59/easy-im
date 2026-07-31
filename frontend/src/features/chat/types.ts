@@ -56,6 +56,11 @@ export function shortName(label: string): string {
   return s;
 }
 
+/** Prefer display name, then email short name, then raw label. */
+export function displayName(label: string, displayName?: string): string {
+  return displayName?.trim() || shortName(label) || label;
+}
+
 /** Insert text at selection inside a controlled string. */
 export function insertAtCursor(
   value: string,

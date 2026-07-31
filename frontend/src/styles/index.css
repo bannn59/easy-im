@@ -507,6 +507,12 @@ code {
   gap: var(--space-1);
 }
 
+.workspace__side-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 .workspace__open-hint {
   margin: var(--space-2) 0 0;
   font-size: 0.8125rem;

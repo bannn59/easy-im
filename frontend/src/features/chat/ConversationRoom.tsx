@@ -8,7 +8,7 @@ import { useRealtime, sendFrame } from '../../realtime';
 import { useSession } from '../../app/Session';
 import { Composer, type ComposerReply } from './Composer';
 import { MessageList } from './MessageList';
-import { mergeMessage, newClientMsgId, shortName, type ChatItem } from './types';
+import { displayName, mergeMessage, newClientMsgId, shortName, type ChatItem } from './types';
 
 const NEAR_BOTTOM_PX = 80;
 
@@ -51,7 +51,7 @@ export function ConversationRoom() {
         return session.user.email;
       }
       const m = conv?.members?.find((x) => x.id === senderId);
-      return m?.email ?? senderId.slice(0, 8);
+      return m ? displayName(m.email, m.display_name) : senderId.slice(0, 8);
     },
     [conv, session.user],
   );
@@ -343,7 +343,7 @@ export function ConversationRoom() {
     const names = [...typingUsers]
       .map((uid) => {
         const m = members.find((x) => x.id === uid);
-        return m ? shortName(m.email) || m.email : uid.slice(0, 8);
+        return m ? displayName(m.email, m.display_name) : uid.slice(0, 8);
       })
       .slice(0, 3);
     if (names.length === 1) return t('chat.typingOne', { name: names[0] });
@@ -356,7 +356,7 @@ export function ConversationRoom() {
     : isGroup
       ? t('chat.groupUntitled')
       : peer
-        ? shortName(peer.email) || peer.email
+        ? displayName(peer.email, peer.display_name)
         : t('common.untitled');
 
   return (

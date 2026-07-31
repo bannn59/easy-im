@@ -5,6 +5,7 @@
     "status": "状态",
     "workspace": "工作区",
     "friends": "好友",
+    "settings": "设置",
     "signIn": "登录",
     "register": "注册",
     "signOut": "退出"
@@ -110,5 +111,21 @@
   },
   "language": {
     "switcherAria": "语言"
+  },
+  "settings": {
+    "eyebrow": "账号",
+    "title": "设置",
+    "profile": "个人资料",
+    "email": "邮箱",
+    "memberSince": "注册于",
+    "displayName": "显示名",
+    "save": "保存",
+    "nameSaved": "显示名已更新。",
+    "changePassword": "修改密码",
+    "currentPassword": "当前密码",
+    "newPassword": "新密码",
+    "confirmPassword": "确认新密码",
+    "passwordMismatch": "两次输入的密码不一致。",
+    "passwordSaved": "密码已更新。"
   }
 }

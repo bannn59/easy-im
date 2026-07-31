@@ -105,7 +105,7 @@ func (r *FriendRepo) AreFriends(ctx context.Context, userID1, userID2 string) (b
 func (r *FriendRepo) ListIncomingPending(ctx context.Context, userID string) ([]domain.FriendRequest, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT r.id, r.from_user_id, r.to_user_id, r.status, r.created_at, r.responded_at,
-			u.id, u.email, u.created_at, u.updated_at
+			u.id, u.email, u.display_name, u.created_at, u.updated_at
 		FROM friend_requests r
 		INNER JOIN users u ON u.id = r.from_user_id
 		WHERE r.to_user_id = $1 AND r.status = 'pending'
@@ -124,7 +124,7 @@ func (r *FriendRepo) ListIncomingPending(ctx context.Context, userID string) ([]
 		var from domain.User
 		if err := rows.Scan(
 			&req.ID, &req.FromUserID, &req.ToUserID, &status, &req.CreatedAt, &respondedAt,
-			&from.ID, &from.Email, &from.CreatedAt, &from.UpdatedAt,
+			&from.ID, &from.Email, &from.DisplayName, &from.CreatedAt, &from.UpdatedAt,
 		); err != nil {
 			return nil, apperr.Internal("scan friend request failed", err)
 		}
@@ -142,7 +142,7 @@ func (r *FriendRepo) ListIncomingPending(ctx context.Context, userID string) ([]
 // ListFriends returns peer users for userID, ordered by email.
 func (r *FriendRepo) ListFriends(ctx context.Context, userID string) ([]domain.User, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT u.id, u.email, u.created_at, u.updated_at
+		SELECT u.id, u.email, u.display_name, u.created_at, u.updated_at
 		FROM friendships f
 		INNER JOIN users u ON u.id = CASE
 			WHEN f.user_a_id = $1 THEN f.user_b_id
@@ -159,7 +159,7 @@ func (r *FriendRepo) ListFriends(ctx context.Context, userID string) ([]domain.U
 	var out []domain.User
 	for rows.Next() {
 		var u domain.User
-		if err := rows.Scan(&u.ID, &u.Email, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Email, &u.DisplayName, &u.CreatedAt, &u.UpdatedAt); err != nil {
 			return nil, apperr.Internal("scan friend failed", err)
 		}
 		out = append(out, u)

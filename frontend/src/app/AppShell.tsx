@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { listConversations, type Conversation } from '../api/conversations';
 import { ApiError } from '../api/http';
 import type { Message } from '../api/messages';
-import { shortName } from '../features/chat/types';
+import { displayName } from '../features/chat/types';
 import { useRealtime } from '../realtime';
 import { useSession } from './Session';
 
@@ -75,7 +75,7 @@ function conversationListTitle(
   const count = c.member_count ?? members.length;
   if (count > 2) return t('chat.groupUntitled');
   const peer = members.find((m) => m.id !== selfId);
-  if (peer) return shortName(peer.email) || peer.email;
+  if (peer) return displayName(peer.email, peer.display_name);
   return t('common.untitled');
 }
 
@@ -176,6 +176,9 @@ export function AppShell() {
       <aside className="workspace__side" aria-label={t('workspace.conversationsAria')}>
         <div className="workspace__side-head">
           <p className="page__eyebrow">{t('workspace.conversations')}</p>
+          {session.user.display_name ? (
+            <p className="muted">{session.user.display_name}</p>
+          ) : null}
           <p className="muted">{session.user.email}</p>
           <p className="muted workspace__open-hint">{t('workspace.openFromFriends')}</p>
         </div>
@@ -223,9 +226,14 @@ export function AppShell() {
           )}
         </ul>
 
-        <button type="button" className="btn btn--ghost" onClick={() => session.logout()}>
-          {t('workspace.signOut')}
-        </button>
+        <div className="workspace__side-actions">
+          <Link to="/settings" className="btn btn--ghost">
+            {t('nav.settings')}
+          </Link>
+          <button type="button" className="btn btn--ghost" onClick={() => session.logout()}>
+            {t('workspace.signOut')}
+          </button>
+        </div>
       </aside>
       <div className="workspace__main">
         <Outlet />

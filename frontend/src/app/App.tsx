@@ -4,6 +4,7 @@ import { LanguageSwitcher } from '../i18n/LanguageSwitcher';
 import { AuthPage } from './AuthPage';
 import { ConversationRoom } from '../features/chat';
 import { FriendsPage } from '../features/friends';
+import { SettingsPage } from '../features/settings';
 import { AppShell, ConversationHome } from './AppShell';
 import { HealthPage } from './HealthPage';
 import { HomePage } from './HomePage';
@@ -63,6 +64,7 @@ export function App() {
                   <Route path="c/:id" element={<ConversationRoom />} />
                 </Route>
                 <Route path="/friends" element={<FriendsPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
               </Routes>
             </main>
           </div>

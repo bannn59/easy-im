@@ -146,7 +146,7 @@ func (r *ConversationRepo) attachMembers(ctx context.Context, list []domain.Conv
 		index[c.ID] = i
 	}
 	rows, err := r.pool.Query(ctx, `
-		SELECT m.conversation_id, u.id, u.email, u.created_at, u.updated_at
+		SELECT m.conversation_id, u.id, u.email, u.display_name, u.created_at, u.updated_at
 		FROM conversation_members m
 		INNER JOIN users u ON u.id = m.user_id
 		WHERE m.conversation_id = ANY($1)
@@ -159,7 +159,7 @@ func (r *ConversationRepo) attachMembers(ctx context.Context, list []domain.Conv
 	for rows.Next() {
 		var convID string
 		var u domain.User
-		if err := rows.Scan(&convID, &u.ID, &u.Email, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := rows.Scan(&convID, &u.ID, &u.Email, &u.DisplayName, &u.CreatedAt, &u.UpdatedAt); err != nil {
 			return apperr.Internal("scan conversation member failed", err)
 		}
 		i, ok := index[convID]
@@ -255,7 +255,7 @@ func (r *ConversationRepo) ListMemberIDs(ctx context.Context, conversationID str
 
 func (r *ConversationRepo) listMembers(ctx context.Context, conversationID string) ([]domain.User, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT u.id, u.email, u.created_at, u.updated_at
+		SELECT u.id, u.email, u.display_name, u.created_at, u.updated_at
 		FROM conversation_members m
 		INNER JOIN users u ON u.id = m.user_id
 		WHERE m.conversation_id = $1
@@ -268,7 +268,7 @@ func (r *ConversationRepo) listMembers(ctx context.Context, conversationID strin
 	var out []domain.User
 	for rows.Next() {
 		var u domain.User
-		if err := rows.Scan(&u.ID, &u.Email, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Email, &u.DisplayName, &u.CreatedAt, &u.UpdatedAt); err != nil {
 			return nil, apperr.Internal("scan member failed", err)
 		}
 		out = append(out, u)

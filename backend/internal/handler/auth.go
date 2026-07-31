@@ -16,8 +16,17 @@ type authCredentials struct {
 }
 
 type publicUser struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
+	ID          string `json:"id"`
+	Email       string `json:"email"`
+	DisplayName string `json:"display_name"`
+}
+
+// profileDTO is /v1/me — adds member-since timestamp.
+type profileDTO struct {
+	ID          string `json:"id"`
+	Email       string `json:"email"`
+	DisplayName string `json:"display_name"`
+	CreatedAt   string `json:"created_at"`
 }
 
 type tokenResponse struct {
@@ -27,7 +36,16 @@ type tokenResponse struct {
 }
 
 func toPublicUser(u domain.User) publicUser {
-	return publicUser{ID: u.ID, Email: u.Email}
+	return publicUser{ID: u.ID, Email: u.Email, DisplayName: u.DisplayName}
+}
+
+func toProfileDTO(u domain.User) profileDTO {
+	return profileDTO{
+		ID:          u.ID,
+		Email:       u.Email,
+		DisplayName: u.DisplayName,
+		CreatedAt:   u.CreatedAt.UTC().Format(timeRFC3339),
+	}
 }
 
 // AuthHandler serves /v1/auth/* and /v1/me.
@@ -106,7 +124,59 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toPublicUser(u))
+	writeJSON(w, http.StatusOK, toProfileDTO(u))
+}
+
+type updateProfileBody struct {
+	DisplayName string `json:"display_name"`
+}
+
+func (h *AuthHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPatch {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if h.Auth == nil {
+		WriteError(w, r, apperr.Unavailable("auth not configured"))
+		return
+	}
+	var body updateProfileBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		WriteError(w, r, apperr.Invalid("invalid JSON body"))
+		return
+	}
+	u, err := h.Auth.UpdateDisplayName(r.Context(), UserIDFromContext(r.Context()), body.DisplayName)
+	if err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toProfileDTO(u))
+}
+
+type changePasswordBody struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
+}
+
+func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if h.Auth == nil {
+		WriteError(w, r, apperr.Unavailable("auth not configured"))
+		return
+	}
+	var body changePasswordBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		WriteError(w, r, apperr.Invalid("invalid JSON body"))
+		return
+	}
+	if err := h.Auth.ChangePassword(r.Context(), UserIDFromContext(r.Context()), body.CurrentPassword, body.NewPassword); err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 func bearerToken(r *http.Request) string {
