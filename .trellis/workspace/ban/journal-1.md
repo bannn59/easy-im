@@ -628,3 +628,24 @@ Implemented offline Web Push delivery. Backend: push_subscriptions table + API, 
 ### Status
 
 [OK] **Completed**
+
+
+## Session 22: P7 multi-node realtime fanout (Kafka-backed)
+
+**Date**: 2026-08-01
+**Task**: P7 multi-node realtime fanout (Kafka-backed)
+**Branch**: `main`
+
+### Summary
+
+Multi-node realtime fanout so WS delivery scales horizontally. Per-node Kafka consumer groups (easyim-realtime-<nodeID>) re-deliver im.messages events to local online members; origin-skip dedupes local broadcast + fanout; im.messages carries type+origin; worker filters created-only (edited/recalled/read never push); new groups start-at-end, committed offsets resume. E2E: cross-node created/edited/recalled/read, single-node dedupe, Kafka-down degradation, offline push unchanged. Spec updated (realtime-messaging.md). Env issue: apache/kafka auto-create top-not-applied; topics created via kadm ktool.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `97b6797` | (see git log) |
+
+### Status
+
+[OK] **Completed**
