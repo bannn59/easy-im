@@ -558,3 +558,25 @@ Implemented message edit and recall: messages.edited_at/recalled_at migration, M
 ### Status
 
 [OK] **Completed**
+
+
+## Session 20: P6 Production CORS and auth hardening
+
+**Date**: 2026-07-31
+**Task**: P6 Production CORS and auth hardening
+**Branch**: `main`
+
+### Summary
+
+Migrated auth to HttpOnly SameSite=Lax cookie sessions (JWT in cookie, Secure in prod), added POST /v1/auth/logout, WS auth via cookie with CheckOrigin allowlist validation, env-driven CORS allowlist with credentials + Vary, empty-secret startup abort, TTL 24h. Frontend: removed localStorage token and all API token params, credentials: include, Session tracks user only, realtime connects without ?token=. Fixed realtime/index.ts -> .tsx (JSX in .ts).
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0061cf2` | (see git log) |
+| `f522deb` | (see git log) |
+
+### Status
+
+[OK] **Completed**

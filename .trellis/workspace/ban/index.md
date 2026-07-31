@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 19
+- **Total Sessions**: 20
 - **Last Active**: 2026-07-31
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~560 | Active |
+| `journal-1.md` | ~582 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 20 | 2026-07-31 | P6 Production CORS and auth hardening | `0061cf2`, `f522deb` | `main` |
 | 19 | 2026-07-31 | P5.e Message edit and recall | `1bea908`, `beea97d` | `main` |
 | 18 | 2026-07-31 | P5.d Settings page (profile, display name, password) | `a08521c`, `72e10fc` | `main` |
 | 17 | 2026-07-31 | P5.c Online presence (presence dots) | `a31ce78`, `a92cd42` | `main` |
