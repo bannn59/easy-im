@@ -91,24 +91,24 @@ export function AppShell() {
   const [listError, setListError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!session.token) return;
+    if (!session.user) return;
     setLoadingList(true);
     setListError(null);
     try {
-      const res = await listConversations(session.token);
+      const res = await listConversations();
       setItems(sortConversations(res.conversations ?? []));
     } catch (err) {
       setListError(err instanceof ApiError ? err.message : t('common.failedToLoad'));
     } finally {
       setLoadingList(false);
     }
-  }, [session.token, t]);
+  }, [session.user, t]);
 
   useEffect(() => {
-    if (session.user && session.token) {
+    if (session.user) {
       void refresh();
     }
-  }, [session.user, session.token, refresh]);
+  }, [session.user, refresh]);
 
   // Workspace-level realtime: patch list preview / unread (stable socket; active room via ref).
   const selfId = session.user?.id;
@@ -185,7 +185,7 @@ export function AppShell() {
       </section>
     );
   }
-  if (!session.user || !session.token) {
+  if (!session.user) {
     return <Navigate to="/login" replace />;
   }
 

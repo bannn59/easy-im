@@ -14,14 +14,17 @@ import (
 
 // Deps are optional process dependencies for HTTP handlers.
 type Deps struct {
-	Pool    *pgxpool.Pool
-	Log     *slog.Logger
-	Auth    *service.AuthService
-	Conv    *service.ConversationService
-	Msg     *service.MessageService
-	Friends *service.FriendService
-	Hub     *hub.Hub
-	Members service.MembershipChecker // for WS frame validation
+	Pool               *pgxpool.Pool
+	Log                *slog.Logger
+	Auth               *service.AuthService
+	Conv               *service.ConversationService
+	Msg                *service.MessageService
+	Friends            *service.FriendService
+	Hub                *hub.Hub
+	Members            service.MembershipChecker // for WS frame validation
+	CORSAllowedOrigins []string
+	CookieSecure       bool
+	CookieDomain       string
 }
 
 // NewMux registers HTTP routes and standard middleware for the API process.
@@ -34,9 +37,10 @@ func NewMux(deps Deps) http.Handler {
 	mux.HandleFunc("/healthz", Healthz)
 	mux.Handle("/readyz", Readyz(deps.Pool))
 
-	auth := &AuthHandler{Auth: deps.Auth}
+	auth := &AuthHandler{Auth: deps.Auth, Cookie: CookieConfig{Secure: deps.CookieSecure, Domain: deps.CookieDomain}}
 	mux.HandleFunc("/v1/auth/register", auth.Register)
 	mux.HandleFunc("/v1/auth/login", auth.Login)
+	mux.HandleFunc("/v1/auth/logout", auth.Logout)
 	require := RequireUser(deps.Auth)
 	mux.Handle("GET /v1/me", require(http.HandlerFunc(auth.Me)))
 	mux.Handle("PATCH /v1/me/profile", require(http.HandlerFunc(auth.UpdateProfile)))
@@ -82,29 +86,46 @@ func NewMux(deps Deps) http.Handler {
 		friends.OpenConversation(w, r, r.PathValue("userID"))
 	})))
 
-	ws := &WSHandler{Auth: deps.Auth, Hub: deps.Hub, Members: deps.Members, Friends: deps.Friends, Log: deps.Log}
+	allowedOrigins := make(map[string]struct{}, len(deps.CORSAllowedOrigins))
+	for _, o := range deps.CORSAllowedOrigins {
+		allowedOrigins[o] = struct{}{}
+	}
+
+	ws := &WSHandler{Auth: deps.Auth, Hub: deps.Hub, Members: deps.Members, Friends: deps.Friends, Log: deps.Log, AllowedOrigins: allowedOrigins}
 	deps.Hub.FrameHandler = ws.HandleFrame
 	deps.Hub.PresenceBroadcaster = ws.broadcastPresence
 	mux.Handle("/v1/ws", ws)
 
 	var h http.Handler = mux
-	h = withCORS(h)
+	h = withCORS(allowedOrigins)(h)
 	h = Recover(deps.Log, h)
 	h = RequestID(h)
 	return h
 }
 
-func withCORS(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Request-ID, Authorization")
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+// withCORS sets per-origin CORS headers for origins on the allowlist. Unlisted
+// origins get no CORS headers (browsers block the response). Vary: Origin is
+// set so caches do not serve one origin's headers to another.
+func withCORS(allowed map[string]struct{}) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			if origin != "" {
+				w.Header().Add("Vary", "Origin")
+				if _, ok := allowed[origin]; ok {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					w.Header().Set("Access-Control-Allow-Credentials", "true")
+					w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS")
+					w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Request-ID")
+					if r.Method == http.MethodOptions {
+						w.WriteHeader(http.StatusNoContent)
+						return
+					}
+				}
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // Readyz reports dependency readiness (Postgres ping when configured).

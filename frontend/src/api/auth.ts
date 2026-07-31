@@ -15,7 +15,6 @@ export type Profile = {
 };
 
 export type TokenResponse = {
-  access_token: string;
   token_type: string;
   user: PublicUser;
 };
@@ -34,6 +33,10 @@ export function login(email: string, password: string): Promise<TokenResponse> {
   });
 }
 
-export function fetchMe(token: string): Promise<Profile> {
-  return apiRequest<Profile>('/v1/me', { method: 'GET', token });
+export function logout(): Promise<{ ok: boolean }> {
+  return apiRequest('/v1/auth/logout', { method: 'POST', body: {} });
+}
+
+export function fetchMe(): Promise<Profile> {
+  return apiRequest<Profile>('/v1/me', { method: 'GET' });
 }

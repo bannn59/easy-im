@@ -24,15 +24,15 @@ export function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!session.token) return;
-    fetchMe(session.token)
+    if (!session.user) return;
+    fetchMe()
       .then((p) => {
         setEmail(p.email);
         setMemberSince(p.created_at);
         setName(p.display_name ?? '');
       })
       .catch(() => undefined);
-  }, [session.token]);
+  }, [session.user]);
 
   if (session.loading) {
     return (
@@ -41,7 +41,7 @@ export function SettingsPage() {
       </section>
     );
   }
-  if (!session.user || !session.token) {
+  if (!session.user) {
     return <Navigate to="/login" replace />;
   }
 
@@ -57,12 +57,12 @@ export function SettingsPage() {
 
   async function onSaveName(e: FormEvent) {
     e.preventDefault();
-    if (!session.token) return;
+    if (!session.user) return;
     setSavingName(true);
     setError(null);
     setNameNotice(null);
     try {
-      const p = await updateProfile(session.token, name);
+      const p = await updateProfile(name);
       setName(p.display_name);
       setEmail(p.email);
       setMemberSince(p.created_at);
@@ -77,7 +77,7 @@ export function SettingsPage() {
 
   async function onSavePassword(e: FormEvent) {
     e.preventDefault();
-    if (!session.token) return;
+    if (!session.user) return;
     if (newPassword !== confirmPassword) {
       setError(t('settings.passwordMismatch'));
       return;
@@ -86,7 +86,7 @@ export function SettingsPage() {
     setError(null);
     setPasswordNotice(null);
     try {
-      await changePassword(session.token, currentPassword, newPassword);
+      await changePassword(currentPassword, newPassword);
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');

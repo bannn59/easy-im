@@ -13,17 +13,14 @@ import (
 	"easy-im/backend/internal/service"
 )
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true }, // dev only; tighten for production
-}
-
 // WSHandler upgrades to websocket after JWT auth.
 type WSHandler struct {
-	Auth    *service.AuthService
-	Hub     *hub.Hub
-	Members service.MembershipChecker
-	Friends *service.FriendService
-	Log     *slog.Logger
+	Auth        *service.AuthService
+	Hub         *hub.Hub
+	Members     service.MembershipChecker
+	Friends     *service.FriendService
+	Log         *slog.Logger
+	AllowedOrigins map[string]struct{}
 }
 
 func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -31,16 +28,12 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, apperr.Unavailable("realtime not configured"))
 		return
 	}
-	token := bearerToken(r)
-	if token == "" {
-		token = r.URL.Query().Get("token")
-	}
-	uid, err := h.Auth.ParseAccessToken(token)
+	uid, err := h.Auth.ParseAccessToken(sessionToken(r))
 	if err != nil {
 		WriteError(w, r, err)
 		return
 	}
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := h.upgrader().Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
@@ -48,6 +41,20 @@ func (h *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.Hub.Register(client)
 	go client.WritePump()
 	h.Hub.ReadPump(client, func() { h.Hub.Unregister(client) })
+}
+
+// upgrader builds a WebSocket upgrader that rejects cross-site origins.
+func (h *WSHandler) upgrader() *websocket.Upgrader {
+	return &websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			origin := r.Header.Get("Origin")
+			if origin == "" {
+				return true // non-browser client (e.g. tests) — no Origin to check
+			}
+			_, ok := h.AllowedOrigins[origin]
+			return ok
+		},
+	}
 }
 
 // HandleFrame dispatches inbound WebSocket frames by type.

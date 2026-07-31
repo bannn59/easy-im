@@ -8,7 +8,7 @@ import { useRealtime, sendFrame } from '../../realtime';
 import { useSession } from '../../app/Session';
 import { Composer, type ComposerReply } from './Composer';
 import { MessageList } from './MessageList';
-import { displayName, mergeMessage, newClientMsgId, shortName, type ChatItem } from './types';
+import { displayName, mergeMessage, newClientMsgId, type ChatItem } from './types';
 
 const NEAR_BOTTOM_PX = 80;
 
@@ -73,27 +73,27 @@ export function ConversationRoom() {
   }, []);
 
   const loadMessages = useCallback(async () => {
-    if (!session.token || !id) return;
-    const res = await listMessages(session.token, id, { limit: 100 });
+    if (!session.user || !id) return;
+    const res = await listMessages(id, { limit: 100 });
     setMessages((res.messages ?? []).map((m) => toChatItem(m)));
-  }, [session.token, id]);
+  }, [session.user, id]);
 
   useEffect(() => {
-    if (!session.token || !id) return;
+    if (!session.user || !id) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
     setReply(null);
     setText('');
     stickToBottom.current = true;
-    Promise.all([getConversation(session.token, id), listMessages(session.token, id, { limit: 100 })])
+    Promise.all([getConversation(id), listMessages(id, { limit: 100 })])
       .then(async ([c, msgRes]) => {
         if (cancelled) return;
         setConv(c);
         setMessages((msgRes.messages ?? []).map((m) => toChatItem(m)));
         // Self-only unread: opening the room marks read to head.
         try {
-          await markConversationRead(session.token!, id);
+          await markConversationRead(id);
         } catch {
           // non-fatal: badge may clear on next list refresh
         }
@@ -111,7 +111,7 @@ export function ConversationRoom() {
     return () => {
       cancelled = true;
     };
-  }, [id, session.token, t]);
+  }, [id, session.user, t]);
 
   useEffect(() => {
     if (!loading) {
@@ -129,13 +129,12 @@ export function ConversationRoom() {
   // Room-level subscriptions ride the app-wide connection (useRealtime).
   const convId = id;
   const selfId = session.user?.id;
-  const token = session.token;
   useRealtime({
     onMessageCreated: (m) => {
-      if (m.conversation_id !== convId || !token) return;
+      if (m.conversation_id !== convId) return;
       setMessages((prev) => mergeMessage(prev, toChatItem(m)));
       requestAnimationFrame(() => scrollToBottom(false));
-      void markConversationRead(token, convId, m.seq).catch(() => undefined);
+      void markConversationRead(convId, m.seq).catch(() => undefined);
     },
     onMessageEdited: (m) => {
       if (m.conversation_id !== convId) return;
@@ -191,19 +190,18 @@ export function ConversationRoom() {
 
   // 15s polling fallback while the room is open.
   useEffect(() => {
-    if (!session.token || !id) return;
+    if (!session.user || !id) return;
     const timer = window.setInterval(() => {
       void loadMessages().catch(() => undefined);
     }, 15000);
     return () => window.clearInterval(timer);
-  }, [session.token, id, loadMessages]);
+  }, [session.user, id, loadMessages]);
 
   async function doSend(body: string, replyTo: ComposerReply | null, clientMsgId: string) {
-    if (!session.token || !id || !session.user) return;
+    if (!session.user || !id) return;
     const trimmed = body.trim();
     if (!trimmed) return;
 
-    const token = session.token;
     const selfId = session.user.id;
     const convId = id;
 
@@ -234,7 +232,7 @@ export function ConversationRoom() {
     requestAnimationFrame(() => scrollToBottom(true));
 
     try {
-      const m = await sendMessage(token, convId, {
+      const m = await sendMessage(convId, {
         body: trimmed,
         client_msg_id: clientMsgId,
         reply_to_message_id: replyTo?.id,
@@ -303,9 +301,9 @@ export function ConversationRoom() {
   }
 
   async function onEditMessage(m: ChatItem, newBody: string) {
-    if (!session.token || !id) return;
+    if (!session.user || !id) return;
     try {
-      const updated = await editMessage(session.token, id, m.id, newBody);
+      const updated = await editMessage(id, m.id, newBody);
       setMessages((prev) => mergeMessage(prev, toChatItem(updated)));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('common.requestFailed'));
@@ -313,9 +311,9 @@ export function ConversationRoom() {
   }
 
   async function onRecallMessage(m: ChatItem) {
-    if (!session.token || !id) return;
+    if (!session.user || !id) return;
     try {
-      const updated = await recallMessage(session.token, id, m.id);
+      const updated = await recallMessage(id, m.id);
       setMessages((prev) => mergeMessage(prev, toChatItem(updated)));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('common.requestFailed'));

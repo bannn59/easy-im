@@ -21,23 +21,21 @@ export type Conversation = {
   member_count?: number;
 };
 
-export function listConversations(token: string): Promise<{ conversations: Conversation[] }> {
-  return apiRequest('/v1/conversations', { method: 'GET', token });
+export function listConversations(): Promise<{ conversations: Conversation[] }> {
+  return apiRequest('/v1/conversations', { method: 'GET' });
 }
 
-export function getConversation(token: string, id: string): Promise<Conversation> {
-  return apiRequest(`/v1/conversations/${id}`, { method: 'GET', token });
+export function getConversation(id: string): Promise<Conversation> {
+  return apiRequest(`/v1/conversations/${id}`, { method: 'GET' });
 }
 
 export function markConversationRead(
-  token: string,
   conversationId: string,
   seq?: number,
 ): Promise<{ last_read_seq: number; unread_count: number }> {
   const body = seq !== undefined ? { seq } : {};
   return apiRequest(`/v1/conversations/${conversationId}/read`, {
     method: 'POST',
-    token,
     body,
   });
 }

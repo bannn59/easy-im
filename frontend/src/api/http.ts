@@ -31,6 +31,7 @@ export class ApiError extends Error {
 export type RequestOptions = {
   method?: string;
   body?: unknown;
+  /** Kept for compatibility; cookie-based sessions ignore the token. */
   token?: string | null;
 };
 
@@ -41,13 +42,11 @@ export async function apiRequest<T>(path: string, opts: RequestOptions = {}): Pr
   if (opts.body !== undefined) {
     headers['Content-Type'] = 'application/json';
   }
-  if (opts.token) {
-    headers.Authorization = `Bearer ${opts.token}`;
-  }
 
   const res = await fetch(`${getApiBase()}${path}`, {
     method: opts.method ?? (opts.body !== undefined ? 'POST' : 'GET'),
     headers,
+    credentials: 'include',
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
   });
 

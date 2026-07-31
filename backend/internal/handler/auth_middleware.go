@@ -26,7 +26,7 @@ func RequireUser(auth *service.AuthService) func(http.Handler) http.Handler {
 				WriteError(w, r, apperr.Unavailable("auth not configured"))
 				return
 			}
-			uid, err := auth.ParseAccessToken(bearerToken(r))
+			uid, err := auth.ParseAccessToken(sessionToken(r))
 			if err != nil {
 				WriteError(w, r, err)
 				return

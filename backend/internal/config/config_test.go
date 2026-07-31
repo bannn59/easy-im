@@ -11,6 +11,8 @@ func TestLoadDefaultPort(t *testing.T) {
 	t.Setenv("AUTH_JWT_SECRET", "")
 	t.Setenv("AUTH_DEV_INSECURE", "")
 	t.Setenv("AUTH_TOKEN_TTL", "")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "")
+	t.Setenv("COOKIE_SECURE", "")
 	cfg := Load()
 	if cfg.Addr != ":8080" {
 		t.Fatalf("Addr = %q, want :8080", cfg.Addr)
@@ -21,8 +23,30 @@ func TestLoadDefaultPort(t *testing.T) {
 	if cfg.AuthJWTSecret != "" {
 		t.Fatalf("AuthJWTSecret should be empty without insecure flag")
 	}
-	if cfg.AuthTokenTTL != 168*time.Hour {
+	if cfg.AuthTokenTTL != 24*time.Hour {
 		t.Fatalf("AuthTokenTTL = %v", cfg.AuthTokenTTL)
+	}
+	if len(cfg.CORSAllowedOrigins) != 1 || cfg.CORSAllowedOrigins[0] != "http://localhost:5173" {
+		t.Fatalf("CORSAllowedOrigins = %v", cfg.CORSAllowedOrigins)
+	}
+	if cfg.CookieSecure {
+		t.Fatal("CookieSecure should default false")
+	}
+}
+
+func TestLoadCORSAndCookie(t *testing.T) {
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://a.example.com, https://b.example.com")
+	t.Setenv("COOKIE_SECURE", "1")
+	t.Setenv("COOKIE_DOMAIN", ".example.com")
+	cfg := Load()
+	if len(cfg.CORSAllowedOrigins) != 2 {
+		t.Fatalf("CORSAllowedOrigins = %v", cfg.CORSAllowedOrigins)
+	}
+	if !cfg.CookieSecure {
+		t.Fatal("CookieSecure should be true")
+	}
+	if cfg.CookieDomain != ".example.com" {
+		t.Fatalf("CookieDomain = %q", cfg.CookieDomain)
 	}
 }
 

@@ -36,7 +36,7 @@ type IncomingFrame = { type?: string; payload?: unknown };
 
 // ---- Singleton connection (established by RealtimeProvider) ----
 let singletonWs: WebSocket | null = null;
-let connectedToken: string | null = null;
+let connected = false;
 let retry = 0;
 let retryTimer: number | undefined;
 let stopping = false;
@@ -83,11 +83,11 @@ function dispatch(frame: IncomingFrame) {
   }
 }
 
-function open(token: string) {
+function open() {
   if (stopping) return;
   setStatus('connecting');
   const base = getApiBase().replace(/^http/, 'ws');
-  const ws = new WebSocket(`${base}/v1/ws?token=${encodeURIComponent(token)}`);
+  const ws = new WebSocket(`${base}/v1/ws`); // cookie-authenticated; no ?token=
   singletonWs = ws;
   ws.onopen = () => {
     retry = 0;
@@ -106,7 +106,7 @@ function open(token: string) {
     if (!stopping) {
       const delay = Math.min(10000, 500 * 2 ** retry);
       retry += 1;
-      retryTimer = window.setTimeout(() => open(token), delay);
+      retryTimer = window.setTimeout(open, delay);
     }
   };
   ws.onerror = () => {
@@ -115,17 +115,15 @@ function open(token: string) {
 }
 
 /**
- * Establish the app-wide WebSocket connection. Idempotent: if already connected
- * with the same token this is a no-op; a different token first closes the old one.
+ * Establish the app-wide WebSocket connection. Idempotent; a no-op if the
+ * connection (or its retry timer) is already active.
  */
-export function startRealtime(token: string): void {
-  if (connectedToken === token && (singletonWs !== null || retryTimer !== undefined)) {
+export function startRealtime(): void {
+  if (connected || retryTimer !== undefined) {
     return;
   }
-  stopRealtime();
-  connectedToken = token;
   stopping = false;
-  open(token);
+  open();
 }
 
 /** Close the app-wide WebSocket connection (e.g. on logout). */
@@ -139,7 +137,7 @@ export function stopRealtime(): void {
     singletonWs.close();
     singletonWs = null;
   }
-  connectedToken = null;
+  connected = false;
   retry = 0;
   setStatus('idle');
 }
@@ -179,17 +177,16 @@ export function sendFrame(type: string, payload: unknown): void {
 
 /**
  * App-level realtime connection lifecycle. Renders children and keeps the
- * singleton WebSocket in sync with the session token (connect on login,
- * disconnect on logout).
+ * singleton WebSocket connected while a user is logged in.
  */
 export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const session = useSession();
   useEffect(() => {
-    if (session.token) {
-      startRealtime(session.token);
+    if (session.user) {
+      startRealtime();
       return () => stopRealtime();
     }
     stopRealtime();
-  }, [session.token]);
+  }, [session.user]);
   return <>{children}</>;
 }

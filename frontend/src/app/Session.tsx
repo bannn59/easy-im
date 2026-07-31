@@ -9,17 +9,13 @@ import {
 } from 'react';
 import * as authApi from '../api/auth';
 import type { PublicUser } from '../api/auth';
-import { ApiError } from '../api/http';
-
-const TOKEN_KEY = 'easyim_access_token';
 
 type SessionState = {
-  token: string | null;
   user: PublicUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   setUser: (u: PublicUser | null) => void;
   refreshUser: () => Promise<void>;
 };
@@ -27,35 +23,28 @@ type SessionState = {
 const SessionContext = createContext<SessionState | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
   const [user, setUserState] = useState<PublicUser | null>(null);
-  const [loading, setLoading] = useState(Boolean(localStorage.getItem(TOKEN_KEY)));
+  const [loading, setLoading] = useState(true);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
-    setToken(null);
+  const logout = useCallback(async () => {
+    try {
+      await authApi.logout();
+    } catch {
+      // cookie may already be gone; local state clears regardless
+    }
     setUserState(null);
   }, []);
 
   useEffect(() => {
-    if (!token) {
-      setUserState(null);
-      setLoading(false);
-      return;
-    }
     let cancelled = false;
     setLoading(true);
     authApi
-      .fetchMe(token)
+      .fetchMe()
       .then((u) => {
-        if (!cancelled) setUserState(u);
+        if (!cancelled) setUserState({ id: u.id, email: u.email, display_name: u.display_name });
       })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          if (err instanceof ApiError && err.status === 401) {
-            logout();
-          }
-        }
+      .catch(() => {
+        // not logged in (no/invalid cookie) — user stays null
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -63,21 +52,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [token, logout]);
-
-  const applyAuth = useCallback(async (res: authApi.TokenResponse) => {
-    localStorage.setItem(TOKEN_KEY, res.access_token);
-    setToken(res.access_token);
-    setUserState(res.user);
   }, []);
 
   const setUser = useCallback((u: PublicUser | null) => setUserState(u), []);
 
   const refreshUser = useCallback(async () => {
-    const t = localStorage.getItem(TOKEN_KEY);
-    if (!t) return;
-    const u = await authApi.fetchMe(t);
+    const u = await authApi.fetchMe();
     setUserState({ id: u.id, email: u.email, display_name: u.display_name });
+  }, []);
+
+  const applyAuth = useCallback(async (res: authApi.TokenResponse) => {
+    setUserState(res.user);
   }, []);
 
   const login = useCallback(
@@ -97,8 +82,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ token, user, loading, login, register, logout, setUser, refreshUser }),
-    [token, user, loading, login, register, logout, setUser, refreshUser],
+    () => ({ user, loading, login, register, logout, setUser, refreshUser }),
+    [user, loading, login, register, logout, setUser, refreshUser],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

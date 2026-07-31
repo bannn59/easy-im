@@ -15,45 +15,39 @@ export type FriendRequest = {
   to_user?: PublicUser;
 };
 
-export function sendFriendRequest(token: string, email: string): Promise<FriendRequest> {
+export function sendFriendRequest(email: string): Promise<FriendRequest> {
   return apiRequest<FriendRequest>('/v1/friends/requests', {
     method: 'POST',
-    token,
     body: { email },
   });
 }
 
-export function listIncomingFriendRequests(
-  token: string,
-): Promise<{ requests: FriendRequest[] }> {
-  return apiRequest('/v1/friends/requests/incoming', { method: 'GET', token });
+export function listIncomingFriendRequests(): Promise<{ requests: FriendRequest[] }> {
+  return apiRequest('/v1/friends/requests/incoming', { method: 'GET' });
 }
 
-export function listFriends(token: string): Promise<{ friends: PublicUser[] }> {
-  return apiRequest('/v1/friends', { method: 'GET', token });
+export function listFriends(): Promise<{ friends: PublicUser[] }> {
+  return apiRequest('/v1/friends', { method: 'GET' });
 }
 
-export function acceptFriendRequest(token: string, requestId: string): Promise<FriendRequest> {
+export function acceptFriendRequest(requestId: string): Promise<FriendRequest> {
   return apiRequest(`/v1/friends/requests/${requestId}/accept`, {
     method: 'POST',
-    token,
     body: {},
   });
 }
 
-export function rejectFriendRequest(token: string, requestId: string): Promise<FriendRequest> {
+export function rejectFriendRequest(requestId: string): Promise<FriendRequest> {
   return apiRequest(`/v1/friends/requests/${requestId}/reject`, {
     method: 'POST',
-    token,
     body: {},
   });
 }
 
 /** Get-or-create a 1:1 conversation with an accepted friend. */
-export function openFriendConversation(token: string, peerUserId: string): Promise<Conversation> {
+export function openFriendConversation(peerUserId: string): Promise<Conversation> {
   return apiRequest(`/v1/friends/${peerUserId}/conversation`, {
     method: 'POST',
-    token,
     body: {},
   });
 }

@@ -37,16 +37,20 @@ func main() {
 	}
 
 	if cfg.AuthJWTSecret == "" {
-		log.Warn("AUTH_JWT_SECRET unset; auth routes return 503 (set AUTH_DEV_INSECURE=1 for local default)", "service", "api")
+		log.Error("AUTH_JWT_SECRET unset; refusing to start. Set a production secret, or AUTH_DEV_INSECURE=1 for local development", "service", "api")
+		os.Exit(1)
 	}
 
 	srv := &http.Server{
 		Addr: cfg.Addr,
 		Handler: app.NewAPIHandler(app.APIOptions{
-			Pool:          pool,
-			Log:           log,
-			AuthJWTSecret: cfg.AuthJWTSecret,
-			AuthTokenTTL:  cfg.AuthTokenTTL,
+			Pool:               pool,
+			Log:                log,
+			AuthJWTSecret:      cfg.AuthJWTSecret,
+			AuthTokenTTL:       cfg.AuthTokenTTL,
+			CORSAllowedOrigins: cfg.CORSAllowedOrigins,
+			CookieSecure:       cfg.CookieSecure,
+			CookieDomain:       cfg.CookieDomain,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

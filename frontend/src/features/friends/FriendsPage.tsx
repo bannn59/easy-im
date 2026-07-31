@@ -30,13 +30,13 @@ export function FriendsPage() {
   const [openingId, setOpeningId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!session.token) return;
+    if (!session.user) return;
     setLoading(true);
     setError(null);
     try {
       const [inc, fr] = await Promise.all([
-        listIncomingFriendRequests(session.token),
-        listFriends(session.token),
+        listIncomingFriendRequests(),
+        listFriends(),
       ]);
       setIncoming(inc.requests ?? []);
       setFriends(fr.friends ?? []);
@@ -45,13 +45,13 @@ export function FriendsPage() {
     } finally {
       setLoading(false);
     }
-  }, [session.token, t]);
+  }, [session.user, t]);
 
   useEffect(() => {
-    if (session.user && session.token) {
+    if (session.user) {
       void refresh();
     }
-  }, [session.user, session.token, refresh]);
+  }, [session.user, refresh]);
 
   // Live presence: patch friend online state from the shared connection.
   useRealtime({
@@ -69,18 +69,18 @@ export function FriendsPage() {
       </section>
     );
   }
-  if (!session.user || !session.token) {
+  if (!session.user) {
     return <Navigate to="/login" replace />;
   }
 
   async function onSend(e: FormEvent) {
     e.preventDefault();
-    if (!session.token) return;
+    if (!session.user) return;
     setSending(true);
     setError(null);
     setNotice(null);
     try {
-      await sendFriendRequest(session.token, email.trim());
+      await sendFriendRequest(email.trim());
       setEmail('');
       setNotice(t('friends.requestSent'));
       await refresh();
@@ -92,12 +92,12 @@ export function FriendsPage() {
   }
 
   async function onAccept(id: string) {
-    if (!session.token) return;
+    if (!session.user) return;
     setActingId(id);
     setError(null);
     setNotice(null);
     try {
-      await acceptFriendRequest(session.token, id);
+      await acceptFriendRequest(id);
       setNotice(t('friends.accepted'));
       await refresh();
     } catch (err) {
@@ -108,12 +108,12 @@ export function FriendsPage() {
   }
 
   async function onReject(id: string) {
-    if (!session.token) return;
+    if (!session.user) return;
     setActingId(id);
     setError(null);
     setNotice(null);
     try {
-      await rejectFriendRequest(session.token, id);
+      await rejectFriendRequest(id);
       setNotice(t('friends.rejected'));
       await refresh();
     } catch (err) {
@@ -124,12 +124,12 @@ export function FriendsPage() {
   }
 
   async function onMessage(peer: PublicUser) {
-    if (!session.token) return;
+    if (!session.user) return;
     setOpeningId(peer.id);
     setError(null);
     setNotice(null);
     try {
-      const c = await openFriendConversation(session.token, peer.id);
+      const c = await openFriendConversation(peer.id);
       navigate(`/app/c/${c.id}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('common.requestFailed'));

@@ -15,10 +15,13 @@ import (
 
 // APIOptions configures the API HTTP stack.
 type APIOptions struct {
-	Pool          *pgxpool.Pool
-	Log           *slog.Logger
-	AuthJWTSecret string
-	AuthTokenTTL  time.Duration
+	Pool               *pgxpool.Pool
+	Log                *slog.Logger
+	AuthJWTSecret      string
+	AuthTokenTTL       time.Duration
+	CORSAllowedOrigins []string
+	CookieSecure       bool
+	CookieDomain       string
 }
 
 // NewAPIHandler wires HTTP handlers for cmd/api.
@@ -47,13 +50,16 @@ func NewAPIHandler(opts APIOptions) http.Handler {
 		friends = service.NewFriendService(friendRepo, users)
 	}
 	return handler.NewMux(handler.Deps{
-		Pool:    opts.Pool,
-		Log:     opts.Log,
-		Auth:    auth,
-		Conv:    conv,
-		Msg:     msg,
-		Friends: friends,
-		Hub:     rtHub,
-		Members: members,
+		Pool:               opts.Pool,
+		Log:                opts.Log,
+		Auth:               auth,
+		Conv:               conv,
+		Msg:                msg,
+		Friends:            friends,
+		Hub:                rtHub,
+		Members:            members,
+		CORSAllowedOrigins: opts.CORSAllowedOrigins,
+		CookieSecure:       opts.CookieSecure,
+		CookieDomain:       opts.CookieDomain,
 	})
 }

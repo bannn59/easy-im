@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"easy-im/backend/internal/apperr"
 	"easy-im/backend/internal/domain"
@@ -30,9 +29,8 @@ type profileDTO struct {
 }
 
 type tokenResponse struct {
-	AccessToken string     `json:"access_token"`
-	TokenType   string     `json:"token_type"`
-	User        publicUser `json:"user"`
+	TokenType string     `json:"token_type"`
+	User      publicUser `json:"user"`
 }
 
 func toPublicUser(u domain.User) publicUser {
@@ -50,7 +48,8 @@ func toProfileDTO(u domain.User) profileDTO {
 
 // AuthHandler serves /v1/auth/* and /v1/me.
 type AuthHandler struct {
-	Auth *service.AuthService
+	Auth   *service.AuthService
+	Cookie CookieConfig
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -72,10 +71,10 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, err)
 		return
 	}
+	setSessionCookie(w, res.AccessToken, h.Cookie)
 	writeJSON(w, http.StatusCreated, tokenResponse{
-		AccessToken: res.AccessToken,
-		TokenType:   "Bearer",
-		User:        toPublicUser(res.User),
+		TokenType: "Bearer",
+		User:      toPublicUser(res.User),
 	})
 }
 
@@ -98,11 +97,20 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, err)
 		return
 	}
+	setSessionCookie(w, res.AccessToken, h.Cookie)
 	writeJSON(w, http.StatusOK, tokenResponse{
-		AccessToken: res.AccessToken,
-		TokenType:   "Bearer",
-		User:        toPublicUser(res.User),
+		TokenType: "Bearer",
+		User:      toPublicUser(res.User),
 	})
+}
+
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	clearSessionCookie(w, h.Cookie)
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
@@ -114,7 +122,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, apperr.Unavailable("auth not configured"))
 		return
 	}
-	uid, err := h.Auth.ParseAccessToken(bearerToken(r))
+	uid, err := h.Auth.ParseAccessToken(sessionToken(r))
 	if err != nil {
 		WriteError(w, r, err)
 		return
@@ -177,18 +185,6 @@ func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
-}
-
-func bearerToken(r *http.Request) string {
-	h := r.Header.Get("Authorization")
-	if h == "" {
-		return ""
-	}
-	const p = "Bearer "
-	if len(h) < len(p) || !strings.EqualFold(h[:len(p)], p) {
-		return ""
-	}
-	return strings.TrimSpace(h[len(p):])
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

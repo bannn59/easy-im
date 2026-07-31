@@ -20,7 +20,6 @@ export type Message = {
 };
 
 export function listMessages(
-  token: string,
   conversationId: string,
   opts?: { before_seq?: number; limit?: number },
 ): Promise<{ messages: Message[] }> {
@@ -30,43 +29,36 @@ export function listMessages(
   const qs = q.toString();
   return apiRequest(`/v1/conversations/${conversationId}/messages${qs ? `?${qs}` : ''}`, {
     method: 'GET',
-    token,
   });
 }
 
 export function sendMessage(
-  token: string,
   conversationId: string,
   body: { body: string; client_msg_id: string; reply_to_message_id?: string },
 ): Promise<Message> {
   return apiRequest(`/v1/conversations/${conversationId}/messages`, {
     method: 'POST',
-    token,
     body,
   });
 }
 
 export function editMessage(
-  token: string,
   conversationId: string,
   messageId: string,
   body: string,
 ): Promise<Message> {
   return apiRequest(`/v1/conversations/${conversationId}/messages/${messageId}`, {
     method: 'PATCH',
-    token,
     body: { body },
   });
 }
 
 export function recallMessage(
-  token: string,
   conversationId: string,
   messageId: string,
 ): Promise<Message> {
   return apiRequest(`/v1/conversations/${conversationId}/messages/${messageId}/recall`, {
     method: 'POST',
-    token,
     body: {},
   });
 }
