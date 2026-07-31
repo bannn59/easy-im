@@ -170,6 +170,37 @@ func (r *FriendRepo) ListFriends(ctx context.Context, userID string) ([]domain.U
 	return out, nil
 }
 
+// ListFriendIDs returns peer user IDs for userID, ordered by email.
+func (r *FriendRepo) ListFriendIDs(ctx context.Context, userID string) ([]string, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT u.id
+		FROM friendships f
+		INNER JOIN users u ON u.id = CASE
+			WHEN f.user_a_id = $1 THEN f.user_b_id
+			ELSE f.user_a_id
+		END
+		WHERE f.user_a_id = $1 OR f.user_b_id = $1
+		ORDER BY u.email ASC, u.id ASC
+	`, userID)
+	if err != nil {
+		return nil, apperr.Internal("list friend ids failed", err)
+	}
+	defer rows.Close()
+
+	var out []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, apperr.Internal("scan friend id failed", err)
+		}
+		out = append(out, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, apperr.Internal("iterate friend ids failed", err)
+	}
+	return out, nil
+}
+
 // AcceptRequest marks the request accepted and inserts the friendship in one transaction.
 func (r *FriendRepo) AcceptRequest(ctx context.Context, requestID, actorUserID string, respondedAt time.Time) (domain.FriendRequest, error) {
 	tx, err := r.pool.Begin(ctx)

@@ -35,6 +35,10 @@ type Hub struct {
 	// FrameHandler is called for each valid inbound frame. Set by the WS handler.
 	FrameHandler func(userID string, frame InboundFrame)
 
+	// PresenceBroadcaster is called on online/offline transitions (0↔1 connections).
+	// Set by the WS handler; nil-safe.
+	PresenceBroadcaster func(userID string, online bool)
+
 	// Typing timers: key = "conversationID:userID".
 	typingMu     sync.Mutex
 	typingTimers map[string]*time.Timer
@@ -49,16 +53,20 @@ func New() *Hub {
 
 func (h *Hub) Register(c *Client) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
+	wasOnline := len(h.clients[c.UserID]) > 0
 	if h.clients[c.UserID] == nil {
 		h.clients[c.UserID] = map[*Client]struct{}{}
 	}
 	h.clients[c.UserID][c] = struct{}{}
+	h.mu.Unlock()
+	if !wasOnline {
+		h.publishPresence(c.UserID, true)
+	}
 }
 
 func (h *Hub) Unregister(c *Client) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
+	becameOffline := false
 	if set, ok := h.clients[c.UserID]; ok {
 		if _, exists := set[c]; exists {
 			delete(set, c)
@@ -66,9 +74,38 @@ func (h *Hub) Unregister(c *Client) {
 		}
 		if len(set) == 0 {
 			delete(h.clients, c.UserID)
+			becameOffline = true
 		}
 	}
+	h.mu.Unlock()
 	_ = c.Conn.Close()
+	if becameOffline {
+		h.publishPresence(c.UserID, false)
+	}
+}
+
+// IsOnline reports whether userID has at least one live connection.
+func (h *Hub) IsOnline(userID string) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.clients[userID]) > 0
+}
+
+// OnlineUserIDs returns all user IDs with at least one live connection.
+func (h *Hub) OnlineUserIDs() []string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	out := make([]string, 0, len(h.clients))
+	for uid := range h.clients {
+		out = append(out, uid)
+	}
+	return out
+}
+
+func (h *Hub) publishPresence(userID string, online bool) {
+	if h.PresenceBroadcaster != nil {
+		h.PresenceBroadcaster(userID, online)
+	}
 }
 
 // PublishToUsers sends event JSON to all connections of the given users.

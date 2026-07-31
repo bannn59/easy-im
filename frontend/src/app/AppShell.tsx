@@ -5,7 +5,7 @@ import { listConversations, type Conversation } from '../api/conversations';
 import { ApiError } from '../api/http';
 import type { Message } from '../api/messages';
 import { shortName } from '../features/chat/types';
-import { connectRealtime } from '../realtime';
+import { useRealtime } from '../realtime';
 import { useSession } from './Session';
 
 function sortConversations(items: Conversation[]): Conversation[] {
@@ -111,50 +111,46 @@ export function AppShell() {
   }, [session.user, session.token, refresh]);
 
   // Workspace-level realtime: patch list preview / unread (stable socket; active room via ref).
-  useEffect(() => {
-    if (!session.token || !session.user) return;
-    const selfId = session.user.id;
-    const selfEmail = session.user.email;
-    const stop = connectRealtime(session.token, {
-      onMessageCreated: (m: Message) => {
-        setItems((prev) => {
-          const idx = prev.findIndex((c) => c.id === m.conversation_id);
-          if (idx < 0) return prev;
-          const cur = prev[idx];
-          const inRoom = activeIdRef.current === m.conversation_id;
-          let unread = cur.unread_count ?? 0;
-          if (inRoom) {
-            unread = 0;
-          } else if (m.sender_id !== selfId) {
-            unread += 1;
-          }
-          // Preserve sender_email when possible (WS payload has no email).
-          let senderEmail: string | null | undefined;
-          if (m.sender_id === selfId) {
-            senderEmail = selfEmail;
-          } else if (m.sender_id === cur.last_message?.sender_id) {
-            senderEmail = cur.last_message?.sender_email;
-          }
-          const next: Conversation = {
-            ...cur,
-            updated_at: m.created_at,
-            last_message: {
-              seq: m.seq,
-              body: truncatePreviewBody(m.body),
-              sender_id: m.sender_id,
-              sender_email: senderEmail,
-              created_at: m.created_at,
-            },
-            unread_count: unread,
-          };
-          const copy = prev.slice();
-          copy[idx] = next;
-          return sortConversations(copy);
-        });
-      },
-    });
-    return stop;
-  }, [session.token, session.user]);
+  const selfId = session.user?.id;
+  const selfEmail = session.user?.email;
+  useRealtime({
+    onMessageCreated: (m: Message) => {
+      setItems((prev) => {
+        const idx = prev.findIndex((c) => c.id === m.conversation_id);
+        if (idx < 0) return prev;
+        const cur = prev[idx];
+        const inRoom = activeIdRef.current === m.conversation_id;
+        let unread = cur.unread_count ?? 0;
+        if (inRoom) {
+          unread = 0;
+        } else if (m.sender_id !== selfId) {
+          unread += 1;
+        }
+        // Preserve sender_email when possible (WS payload has no email).
+        let senderEmail: string | null | undefined;
+        if (m.sender_id === selfId) {
+          senderEmail = selfEmail;
+        } else if (m.sender_id === cur.last_message?.sender_id) {
+          senderEmail = cur.last_message?.sender_email;
+        }
+        const next: Conversation = {
+          ...cur,
+          updated_at: m.created_at,
+          last_message: {
+            seq: m.seq,
+            body: truncatePreviewBody(m.body),
+            sender_id: m.sender_id,
+            sender_email: senderEmail,
+            created_at: m.created_at,
+          },
+          unread_count: unread,
+        };
+        const copy = prev.slice();
+        copy[idx] = next;
+        return sortConversations(copy);
+      });
+    },
+  });
 
   // When entering a room, zero badge optimistically; room will mark-read.
   useEffect(() => {

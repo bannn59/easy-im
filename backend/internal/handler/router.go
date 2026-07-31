@@ -39,9 +39,9 @@ func NewMux(deps Deps) http.Handler {
 	mux.HandleFunc("/v1/auth/login", auth.Login)
 	mux.HandleFunc("/v1/me", auth.Me)
 
-	conv := &ConversationHandler{Conv: deps.Conv}
+	conv := &ConversationHandler{Conv: deps.Conv, Hub: deps.Hub}
 	msg := &MessageHandler{Msg: deps.Msg}
-	friends := &FriendHandler{Friends: deps.Friends, Conv: deps.Conv}
+	friends := &FriendHandler{Friends: deps.Friends, Conv: deps.Conv, Hub: deps.Hub}
 	require := RequireUser(deps.Auth)
 
 	mux.Handle("GET /v1/conversations", require(http.HandlerFunc(conv.List)))
@@ -74,8 +74,9 @@ func NewMux(deps Deps) http.Handler {
 		friends.OpenConversation(w, r, r.PathValue("userID"))
 	})))
 
-	ws := &WSHandler{Auth: deps.Auth, Hub: deps.Hub, Members: deps.Members, Log: deps.Log}
+	ws := &WSHandler{Auth: deps.Auth, Hub: deps.Hub, Members: deps.Members, Friends: deps.Friends, Log: deps.Log}
 	deps.Hub.FrameHandler = ws.HandleFrame
+	deps.Hub.PresenceBroadcaster = ws.broadcastPresence
 	mux.Handle("/v1/ws", ws)
 
 	var h http.Handler = mux

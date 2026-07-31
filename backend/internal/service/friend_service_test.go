@@ -101,6 +101,26 @@ func (m *memFriendStore) ListFriends(_ context.Context, userID string) ([]domain
 	return out, nil
 }
 
+func (m *memFriendStore) ListFriendIDs(_ context.Context, userID string) ([]string, error) {
+	var out []string
+	for k := range m.friends {
+		var a, b string
+		for i := 0; i < len(k); i++ {
+			if k[i] == '|' {
+				a, b = k[:i], k[i+1:]
+				break
+			}
+		}
+		switch userID {
+		case a:
+			out = append(out, b)
+		case b:
+			out = append(out, a)
+		}
+	}
+	return out, nil
+}
+
 func (m *memFriendStore) AcceptRequest(_ context.Context, requestID, actorUserID string, respondedAt time.Time) (domain.FriendRequest, error) {
 	req, ok := m.requests[requestID]
 	if !ok {
@@ -218,6 +238,15 @@ func TestFriendSendListAccept(t *testing.T) {
 	friendsB, err := svc.ListFriends(context.Background(), "ub")
 	if err != nil || len(friendsB) != 1 || friendsB[0].ID != "ua" {
 		t.Fatalf("friends b: err=%v list=%+v", err, friendsB)
+	}
+
+	friendIDsA, err := svc.ListFriendIDs(context.Background(), "ua")
+	if err != nil || len(friendIDsA) != 1 || friendIDsA[0] != "ub" {
+		t.Fatalf("friend ids a: err=%v ids=%+v", err, friendIDsA)
+	}
+	friendIDsB, err := svc.ListFriendIDs(context.Background(), "ub")
+	if err != nil || len(friendIDsB) != 1 || friendIDsB[0] != "ua" {
+		t.Fatalf("friend ids b: err=%v ids=%+v", err, friendIDsB)
 	}
 
 	incomingAfter, err := svc.ListIncoming(context.Background(), "ub")

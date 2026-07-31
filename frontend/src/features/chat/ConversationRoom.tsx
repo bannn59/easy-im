@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { getConversation, markConversationRead, type Conversation } from '../../api/conversations';
 import { listMessages, sendMessage, type Message } from '../../api/messages';
 import { ApiError } from '../../api/http';
-import { connectRealtime, sendFrame } from '../../realtime';
+import { useRealtime, sendFrame } from '../../realtime';
 import { useSession } from '../../app/Session';
 import { Composer, type ComposerReply } from './Composer';
 import { MessageList } from './MessageList';
@@ -39,6 +39,7 @@ export function ConversationRoom() {
   const [reply, setReply] = useState<ComposerReply | null>(null);
   const [peerReadSeq, setPeerReadSeq] = useState<Map<string, number>>(new Map());
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const [presenceOverrides, setPresenceOverrides] = useState<Record<string, boolean>>({});
   const typingTimers = useRef<Map<string, number>>(new Map());
   const lastTypingSent = useRef(0);
   const listRef = useRef<HTMLUListElement>(null!);
@@ -123,69 +124,69 @@ export function ConversationRoom() {
     return () => el.removeEventListener('scroll', onListScroll);
   }, [onListScroll, loading, conv]);
 
-  useEffect(() => {
-    if (!session.token || !id || !conv) return;
-    const token = session.token;
-    const convId = id;
-    const selfId = session.user?.id;
-    const stop = connectRealtime(token, {
-      onMessageCreated: (m) => {
-        if (m.conversation_id !== convId) return;
-        setMessages((prev) => mergeMessage(prev, toChatItem(m)));
-        requestAnimationFrame(() => scrollToBottom(false));
-        void markConversationRead(token, convId, m.seq).catch(() => undefined);
-      },
-      onMessageRead: (data) => {
-        if (data.conversation_id !== convId) return;
-        setPeerReadSeq((prev) => {
-          const next = new Map(prev);
-          next.set(data.reader_id, Math.max(data.last_read_seq, next.get(data.reader_id) ?? 0));
-          return next;
-        });
-      },
-      onTypingStarted: (data) => {
-        if (data.conversation_id !== convId || data.user_id === selfId) return;
-        setTypingUsers((prev) => new Set(prev).add(data.user_id));
-        // Client-side 4-second timeout
-        const existing = typingTimers.current.get(data.user_id);
-        if (existing) window.clearTimeout(existing);
-        typingTimers.current.set(
-          data.user_id,
-          window.setTimeout(() => {
-            setTypingUsers((prev) => {
-              const next = new Set(prev);
-              next.delete(data.user_id);
-              return next;
-            });
-            typingTimers.current.delete(data.user_id);
-          }, 4000),
-        );
-      },
-      onTypingStopped: (data) => {
-        if (data.conversation_id !== convId) return;
-        setTypingUsers((prev) => {
-          const next = new Set(prev);
-          next.delete(data.user_id);
-          return next;
-        });
-        const existing = typingTimers.current.get(data.user_id);
-        if (existing) {
-          window.clearTimeout(existing);
+  // Room-level subscriptions ride the app-wide connection (useRealtime).
+  const convId = id;
+  const selfId = session.user?.id;
+  const token = session.token;
+  useRealtime({
+    onMessageCreated: (m) => {
+      if (m.conversation_id !== convId || !token) return;
+      setMessages((prev) => mergeMessage(prev, toChatItem(m)));
+      requestAnimationFrame(() => scrollToBottom(false));
+      void markConversationRead(token, convId, m.seq).catch(() => undefined);
+    },
+    onMessageRead: (data) => {
+      if (data.conversation_id !== convId) return;
+      setPeerReadSeq((prev) => {
+        const next = new Map(prev);
+        next.set(data.reader_id, Math.max(data.last_read_seq, next.get(data.reader_id) ?? 0));
+        return next;
+      });
+    },
+    onTypingStarted: (data) => {
+      if (data.conversation_id !== convId || data.user_id === selfId) return;
+      setTypingUsers((prev) => new Set(prev).add(data.user_id));
+      // Client-side 4-second timeout
+      const existing = typingTimers.current.get(data.user_id);
+      if (existing) window.clearTimeout(existing);
+      typingTimers.current.set(
+        data.user_id,
+        window.setTimeout(() => {
+          setTypingUsers((prev) => {
+            const next = new Set(prev);
+            next.delete(data.user_id);
+            return next;
+          });
           typingTimers.current.delete(data.user_id);
-        }
-      },
-    });
+        }, 4000),
+      );
+    },
+    onTypingStopped: (data) => {
+      if (data.conversation_id !== convId) return;
+      setTypingUsers((prev) => {
+        const next = new Set(prev);
+        next.delete(data.user_id);
+        return next;
+      });
+      const existing = typingTimers.current.get(data.user_id);
+      if (existing) {
+        window.clearTimeout(existing);
+        typingTimers.current.delete(data.user_id);
+      }
+    },
+    onPresenceChanged: ({ user_id, online }) => {
+      setPresenceOverrides((prev) => ({ ...prev, [user_id]: online }));
+    },
+  });
+
+  // 15s polling fallback while the room is open.
+  useEffect(() => {
+    if (!session.token || !id) return;
     const timer = window.setInterval(() => {
       void loadMessages().catch(() => undefined);
     }, 15000);
-    return () => {
-      stop();
-      window.clearInterval(timer);
-      // Clean up typing timers
-      for (const t of typingTimers.current.values()) window.clearTimeout(t);
-      typingTimers.current.clear();
-    };
-  }, [session.token, id, conv, loadMessages, scrollToBottom]);
+    return () => window.clearInterval(timer);
+  }, [session.token, id, loadMessages]);
 
   async function doSend(body: string, replyTo: ComposerReply | null, clientMsgId: string) {
     if (!session.token || !id || !session.user) return;
@@ -308,6 +309,10 @@ export function ConversationRoom() {
   const members = conv.members ?? [];
   const isGroup = members.length > 2;
   const peer = members.find((m) => m.id !== session.user?.id);
+  // Live presence: override server-side initial value when a presence event arrives.
+  const peerOnline = peer
+    ? (presenceOverrides[peer.id] ?? peer.online ?? false)
+    : false;
 
   // Compute min peer read seq for checkmark display
   const effectiveReadSeq = (() => {
@@ -359,7 +364,16 @@ export function ConversationRoom() {
       <header className="room__header">
         <div>
           <p className="page__eyebrow">{t('workspace.roomEyebrow')}</p>
-          <h1 className="room__title">{title}</h1>
+          <h1 className="room__title">
+            {!isGroup && (
+              <span
+                className="presence-dot presence-dot--inline"
+                data-online={peerOnline ? 'true' : 'false'}
+                aria-hidden
+              />
+            )}
+            {title}
+          </h1>
           {isGroup && (
             <p className="room__meta">
               {members.map((m) => m.email).join(' · ') || <code>{conv.id}</code>}

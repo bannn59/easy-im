@@ -21,6 +21,7 @@ type FriendStore interface {
 	AreFriends(ctx context.Context, userID1, userID2 string) (bool, error)
 	ListIncomingPending(ctx context.Context, userID string) ([]domain.FriendRequest, error)
 	ListFriends(ctx context.Context, userID string) ([]domain.User, error)
+	ListFriendIDs(ctx context.Context, userID string) ([]string, error)
 	AcceptRequest(ctx context.Context, requestID, actorUserID string, respondedAt time.Time) (domain.FriendRequest, error)
 	RejectRequest(ctx context.Context, requestID, actorUserID string, respondedAt time.Time) (domain.FriendRequest, error)
 }
@@ -136,6 +137,17 @@ func (s *FriendService) ListFriends(ctx context.Context, userID string) ([]domai
 		return nil, err
 	}
 	return s.friends.ListFriends(ctx, userID)
+}
+
+// ListFriendIDs returns the user IDs of all accepted friends.
+func (s *FriendService) ListFriendIDs(ctx context.Context, userID string) ([]string, error) {
+	if userID == "" {
+		return nil, apperr.Unauthorized("missing credentials")
+	}
+	if err := s.ensureReady(); err != nil {
+		return nil, err
+	}
+	return s.friends.ListFriendIDs(ctx, userID)
 }
 
 func (s *FriendService) Accept(ctx context.Context, userID, requestID string) (domain.FriendRequest, error) {

@@ -6,6 +6,7 @@ import (
 
 	"easy-im/backend/internal/apperr"
 	"easy-im/backend/internal/domain"
+	"easy-im/backend/internal/hub"
 	"easy-im/backend/internal/service"
 )
 
@@ -13,10 +14,18 @@ import (
 type FriendHandler struct {
 	Friends *service.FriendService
 	Conv    *service.ConversationService
+	Hub     *hub.Hub
 }
 
 type sendFriendRequestBody struct {
 	Email string `json:"email"`
+}
+
+// friendWithStatusDTO is the friend list row with live online state.
+type friendWithStatusDTO struct {
+	ID     string `json:"id"`
+	Email  string `json:"email"`
+	Online bool   `json:"online"`
 }
 
 type friendRequestDTO struct {
@@ -98,9 +107,13 @@ func (h *FriendHandler) ListFriends(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, err)
 		return
 	}
-	out := make([]publicUser, 0, len(list))
+	out := make([]friendWithStatusDTO, 0, len(list))
 	for _, u := range list {
-		out = append(out, toPublicUser(u))
+		online := false
+		if h.Hub != nil {
+			online = h.Hub.IsOnline(u.ID)
+		}
+		out = append(out, friendWithStatusDTO{ID: u.ID, Email: u.Email, Online: online})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"friends": out})
 }
@@ -142,5 +155,5 @@ func (h *FriendHandler) OpenConversation(w http.ResponseWriter, r *http.Request,
 		WriteError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toConversationDTO(c))
+	writeJSON(w, http.StatusOK, toConversationDTO(c, h.Hub))
 }

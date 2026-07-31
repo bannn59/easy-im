@@ -1051,6 +1051,26 @@ code {
   }
 }
 
+/* Presence dot — online = solid ink, offline = hollow */
+.presence-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: var(--space-2);
+  border: 1px solid var(--ink-tertiary);
+  border-radius: 50%;
+  vertical-align: baseline;
+}
+
+.presence-dot[data-online='true'] {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.presence-dot--inline {
+  margin-right: var(--space-2);
+}
+
 /* —— Friends (minimal contacts) —— */
 .friends {
   max-width: var(--measure);

@@ -13,6 +13,7 @@ import {
 import type { PublicUser } from '../../api/auth';
 import { ApiError } from '../../api/http';
 import { useSession } from '../../app/Session';
+import { useRealtime } from '../../realtime';
 
 export function FriendsPage() {
   const session = useSession();
@@ -51,6 +52,15 @@ export function FriendsPage() {
       void refresh();
     }
   }, [session.user, session.token, refresh]);
+
+  // Live presence: patch friend online state from the shared connection.
+  useRealtime({
+    onPresenceChanged: ({ user_id, online }) => {
+      setFriends((prev) =>
+        prev.map((f) => (f.id === user_id ? { ...f, online } : f)),
+      );
+    },
+  });
 
   if (session.loading) {
     return (
@@ -214,7 +224,14 @@ export function FriendsPage() {
             const busy = openingId === f.id;
             return (
               <li key={f.id} className="friends__row">
-                <span className="friends__email">{f.email}</span>
+                <span className="friends__email">
+                  <span
+                    className="presence-dot"
+                    data-online={f.online ? 'true' : 'false'}
+                    aria-hidden
+                  />
+                  {f.email}
+                </span>
                 <span className="friends__actions">
                   <button
                     type="button"

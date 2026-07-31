@@ -8,6 +8,7 @@ import { AppShell, ConversationHome } from './AppShell';
 import { HealthPage } from './HealthPage';
 import { HomePage } from './HomePage';
 import { SessionProvider, useSession } from './Session';
+import { RealtimeProvider } from '../realtime';
 
 function Header() {
   const session = useSession();
@@ -47,24 +48,26 @@ function Header() {
 export function App() {
   return (
     <SessionProvider>
-      <BrowserRouter>
-        <div className="shell">
-          <Header />
-          <main className="shell__main">
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/health" element={<HealthPage />} />
-              <Route path="/login" element={<AuthPage mode="login" />} />
-              <Route path="/register" element={<AuthPage mode="register" />} />
-              <Route path="/app" element={<AppShell />}>
-                <Route index element={<ConversationHome />} />
-                <Route path="c/:id" element={<ConversationRoom />} />
-              </Route>
-              <Route path="/friends" element={<FriendsPage />} />
-            </Routes>
-          </main>
-        </div>
-      </BrowserRouter>
+      <RealtimeProvider>
+        <BrowserRouter>
+          <div className="shell">
+            <Header />
+            <main className="shell__main">
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/health" element={<HealthPage />} />
+                <Route path="/login" element={<AuthPage mode="login" />} />
+                <Route path="/register" element={<AuthPage mode="register" />} />
+                <Route path="/app" element={<AppShell />}>
+                  <Route index element={<ConversationHome />} />
+                  <Route path="c/:id" element={<ConversationRoom />} />
+                </Route>
+                <Route path="/friends" element={<FriendsPage />} />
+              </Routes>
+            </main>
+          </div>
+        </BrowserRouter>
+      </RealtimeProvider>
     </SessionProvider>
   );
 }

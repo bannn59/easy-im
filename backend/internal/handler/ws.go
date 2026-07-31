@@ -22,6 +22,7 @@ type WSHandler struct {
 	Auth    *service.AuthService
 	Hub     *hub.Hub
 	Members service.MembershipChecker
+	Friends *service.FriendService
 	Log     *slog.Logger
 }
 
@@ -59,6 +60,26 @@ func (h *WSHandler) HandleFrame(userID string, f hub.InboundFrame) {
 			h.Log.Warn("unknown ws frame type", "type", f.Type, "user_id", userID)
 		}
 	}
+}
+
+// broadcastPresence relays an online/offline transition to the user's friends.
+func (h *WSHandler) broadcastPresence(userID string, online bool) {
+	if h.Hub == nil || h.Friends == nil {
+		return
+	}
+	ctx := context.Background()
+	friendIDs, err := h.Friends.ListFriendIDs(ctx, userID)
+	if err != nil || len(friendIDs) == 0 {
+		return
+	}
+	payload, err := json.Marshal(map[string]any{
+		"user_id": userID,
+		"online":  online,
+	})
+	if err != nil {
+		return
+	}
+	h.Hub.PublishToUsers(friendIDs, hub.Event{Type: "presence.changed", Payload: payload})
 }
 
 type typingPayload struct {

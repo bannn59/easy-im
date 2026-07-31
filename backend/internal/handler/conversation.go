@@ -9,12 +9,14 @@ import (
 
 	"easy-im/backend/internal/apperr"
 	"easy-im/backend/internal/domain"
+	"easy-im/backend/internal/hub"
 	"easy-im/backend/internal/service"
 )
 
 // ConversationHandler serves /v1/conversations.
 type ConversationHandler struct {
 	Conv *service.ConversationService
+	Hub  *hub.Hub
 }
 
 type lastMessageDTO struct {
@@ -25,19 +27,26 @@ type lastMessageDTO struct {
 	CreatedAt   string  `json:"created_at"`
 }
 
-type conversationDTO struct {
-	ID          string          `json:"id"`
-	Title       *string         `json:"title"`
-	CreatedBy   string          `json:"created_by"`
-	CreatedAt   string          `json:"created_at"`
-	UpdatedAt   string          `json:"updated_at"`
-	Members     []publicUser    `json:"members,omitempty"`
-	LastMessage *lastMessageDTO `json:"last_message"`
-	UnreadCount int64           `json:"unread_count"`
-	MemberCount int             `json:"member_count,omitempty"`
+// conversationMemberDTO is a conversation member with live online state.
+type conversationMemberDTO struct {
+	ID     string `json:"id"`
+	Email  string `json:"email"`
+	Online bool   `json:"online"`
 }
 
-func toConversationDTO(c domain.Conversation) conversationDTO {
+type conversationDTO struct {
+	ID          string                  `json:"id"`
+	Title       *string                 `json:"title"`
+	CreatedBy   string                  `json:"created_by"`
+	CreatedAt   string                  `json:"created_at"`
+	UpdatedAt   string                  `json:"updated_at"`
+	Members     []conversationMemberDTO `json:"members,omitempty"`
+	LastMessage *lastMessageDTO         `json:"last_message"`
+	UnreadCount int64                   `json:"unread_count"`
+	MemberCount int                     `json:"member_count,omitempty"`
+}
+
+func toConversationDTO(c domain.Conversation, h *hub.Hub) conversationDTO {
 	dto := conversationDTO{
 		ID:          c.ID,
 		Title:       c.Title,
@@ -58,9 +67,13 @@ func toConversationDTO(c domain.Conversation) conversationDTO {
 		}
 	}
 	if len(c.Members) > 0 {
-		dto.Members = make([]publicUser, 0, len(c.Members))
+		dto.Members = make([]conversationMemberDTO, 0, len(c.Members))
 		for _, m := range c.Members {
-			dto.Members = append(dto.Members, toPublicUser(m))
+			online := false
+			if h != nil {
+				online = h.IsOnline(m.ID)
+			}
+			dto.Members = append(dto.Members, conversationMemberDTO{ID: m.ID, Email: m.Email, Online: online})
 		}
 	}
 	return dto
@@ -80,7 +93,7 @@ func (h *ConversationHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]conversationDTO, 0, len(list))
 	for _, c := range list {
-		out = append(out, toConversationDTO(c))
+		out = append(out, toConversationDTO(c, h.Hub))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"conversations": out})
 }
@@ -101,7 +114,7 @@ func (h *ConversationHandler) Get(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toConversationDTO(c))
+	writeJSON(w, http.StatusOK, toConversationDTO(c, h.Hub))
 }
 
 type markReadBody struct {
