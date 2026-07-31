@@ -15,6 +15,8 @@ export type Message = {
   seq: number;
   created_at: string;
   reply_to?: ReplyTo | null;
+  edited_at?: string | null;
+  recalled_at?: string | null;
 };
 
 export function listMessages(
@@ -41,5 +43,30 @@ export function sendMessage(
     method: 'POST',
     token,
     body,
+  });
+}
+
+export function editMessage(
+  token: string,
+  conversationId: string,
+  messageId: string,
+  body: string,
+): Promise<Message> {
+  return apiRequest(`/v1/conversations/${conversationId}/messages/${messageId}`, {
+    method: 'PATCH',
+    token,
+    body: { body },
+  });
+}
+
+export function recallMessage(
+  token: string,
+  conversationId: string,
+  messageId: string,
+): Promise<Message> {
+  return apiRequest(`/v1/conversations/${conversationId}/messages/${messageId}/recall`, {
+    method: 'POST',
+    token,
+    body: {},
   });
 }

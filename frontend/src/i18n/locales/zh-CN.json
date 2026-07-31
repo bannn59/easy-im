@@ -78,7 +78,12 @@
     "groupUntitled": "群聊",
     "typingOne": "{{name}} 正在输入…",
     "typingTwo": "{{name}} 和 {{other}} 正在输入…",
-    "typingMany": "多人正在输入…"
+    "typingMany": "多人正在输入…",
+    "edit": "编辑",
+    "edited": "已编辑",
+    "recall": "撤回",
+    "recalled": "对方撤回了一条消息",
+    "recalledPreview": "[已撤回]"
   },
   "friends": {
     "eyebrow": "通讯录",

@@ -1,3 +1,4 @@
+import { useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ChatItem } from './types';
 import { initialsFrom, shortName } from './types';
@@ -11,7 +12,11 @@ type Props = {
   resolveSender: (senderId: string) => string;
   onReply: (m: ChatItem) => void;
   onRetry?: (m: ChatItem) => void;
+  onEdit?: (m: ChatItem, newBody: string) => void;
+  onRecall?: (m: ChatItem) => void;
 };
+
+const EDIT_WINDOW_MS = 5 * 60 * 1000;
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
@@ -30,16 +35,40 @@ export function MessageBubble({
   resolveSender,
   onReply,
   onRetry,
+  onEdit,
+  onRecall,
 }: Props) {
   const { t } = useTranslation();
   const status = message.status ?? 'sent';
   const name = shortName(senderLabel) || senderLabel;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  const recalled = Boolean(message.recalled_at);
+  const canEditRecall =
+    mine &&
+    status === 'sent' &&
+    !recalled &&
+    Date.now() - new Date(message.created_at).getTime() <= EDIT_WINDOW_MS;
+
+  function startEdit() {
+    setDraft(message.body);
+    setEditing(true);
+  }
+
+  function saveEdit(e?: KeyboardEvent) {
+    e?.preventDefault();
+    const trimmed = draft.trim();
+    if (!trimmed) return;
+    onEdit?.(message, trimmed);
+    setEditing(false);
+  }
 
   return (
     <li
       className={`bubble-item ${mine ? 'bubble-item--mine' : 'bubble-item--theirs'}${
         showSender ? ' bubble-item--named' : ''
-      }`}
+      }${recalled ? ' bubble-item--recalled' : ''}`}
       data-status={status}
     >
       {showSender && !mine && <div className="bubble-sender">{name}</div>}
@@ -50,7 +79,7 @@ export function MessageBubble({
           </div>
         )}
         <div className="bubble-col">
-          {message.reply_to && (
+          {message.reply_to && !recalled && (
             <div className="bubble-quote">
               <span className="bubble-quote__who">
                 {shortName(resolveSender(message.reply_to.sender_id)) ||
@@ -60,11 +89,30 @@ export function MessageBubble({
             </div>
           )}
           <div className={`bubble ${mine ? 'bubble--mine' : 'bubble--theirs'}`}>
-            <p className="bubble__body">{message.body}</p>
+            {recalled ? (
+              <p className="bubble__body bubble__body--recalled">
+                {t('chat.recalled')}
+              </p>
+            ) : editing ? (
+              <textarea
+                className="field__input composer__input bubble-edit-input"
+                value={draft}
+                onChange={(ev) => setDraft(ev.target.value)}
+                onKeyDown={(ev) => {
+                  if (ev.key === 'Enter' && !ev.shiftKey) saveEdit(ev);
+                  if (ev.key === 'Escape') setEditing(false);
+                }}
+                rows={2}
+                autoFocus
+              />
+            ) : (
+              <p className="bubble__body">{message.body}</p>
+            )}
           </div>
           <div className="bubble-meta">
             <time dateTime={message.created_at}>{formatTime(message.created_at)}</time>
-            {mine && status === 'sent' && (
+            {message.edited_at && !recalled && <span>{t('chat.edited')}</span>}
+            {mine && status === 'sent' && !recalled && (
               <span className="bubble-check" data-read={message.isRead ? 'true' : 'false'}>
                 {message.isRead ? '✓✓' : '✓'}
               </span>
@@ -75,9 +123,26 @@ export function MessageBubble({
                 {t('chat.retry')}
               </button>
             )}
-            {status === 'sent' && (
-              <button type="button" className="linkish bubble-reply-btn" onClick={() => onReply(message)}>
-                {t('chat.reply')}
+            {status === 'sent' && !recalled && !editing && (
+              <>
+                <button type="button" className="linkish bubble-reply-btn" onClick={() => onReply(message)}>
+                  {t('chat.reply')}
+                </button>
+                {canEditRecall && onEdit && (
+                  <button type="button" className="linkish bubble-reply-btn" onClick={startEdit}>
+                    {t('chat.edit')}
+                  </button>
+                )}
+                {canEditRecall && onRecall && (
+                  <button type="button" className="linkish bubble-reply-btn" onClick={() => onRecall(message)}>
+                    {t('chat.recall')}
+                  </button>
+                )}
+              </>
+            )}
+            {editing && (
+              <button type="button" className="linkish bubble-reply-btn" onClick={() => setEditing(false)}>
+                {t('chat.cancelReply')}
               </button>
             )}
           </div>

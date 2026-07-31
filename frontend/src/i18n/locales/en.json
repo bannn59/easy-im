@@ -78,7 +78,12 @@
     "groupUntitled": "Group chat",
     "typingOne": "{{name}} is typing…",
     "typingTwo": "{{name}} and {{other}} are typing…",
-    "typingMany": "Several people are typing…"
+    "typingMany": "Several people are typing…",
+    "edit": "Edit",
+    "edited": "edited",
+    "recall": "Recall",
+    "recalled": "Message recalled",
+    "recalledPreview": "[recalled]"
   },
   "friends": {
     "eyebrow": "Contacts",

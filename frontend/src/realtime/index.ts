@@ -23,6 +23,8 @@ export type PresenceData = {
 
 export type RealtimeHandlers = {
   onMessageCreated?: (m: Message) => void;
+  onMessageEdited?: (m: Message) => void;
+  onMessageRecalled?: (m: Message) => void;
   onMessageRead?: (data: ReadReceiptData) => void;
   onTypingStarted?: (data: TypingData) => void;
   onTypingStopped?: (data: TypingData) => void;
@@ -59,6 +61,12 @@ function dispatch(frame: IncomingFrame) {
   switch (frame.type) {
     case 'message.created':
       notify((h) => h.onMessageCreated?.(frame.payload as Message));
+      break;
+    case 'message.edited':
+      notify((h) => h.onMessageEdited?.(frame.payload as Message));
+      break;
+    case 'message.recalled':
+      notify((h) => h.onMessageRecalled?.(frame.payload as Message));
       break;
     case 'message.read':
       notify((h) => h.onMessageRead?.(frame.payload as ReadReceiptData));
@@ -151,6 +159,8 @@ export function useRealtime(handlers: RealtimeHandlers): void {
   useEffect(() => {
     const proxy: RealtimeHandlers = {
       onMessageCreated: (m) => ref.current.onMessageCreated?.(m),
+      onMessageEdited: (m) => ref.current.onMessageEdited?.(m),
+      onMessageRecalled: (m) => ref.current.onMessageRecalled?.(m),
       onMessageRead: (d) => ref.current.onMessageRead?.(d),
       onTypingStarted: (d) => ref.current.onTypingStarted?.(d),
       onTypingStopped: (d) => ref.current.onTypingStopped?.(d),

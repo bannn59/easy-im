@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getConversation, markConversationRead, type Conversation } from '../../api/conversations';
-import { listMessages, sendMessage, type Message } from '../../api/messages';
+import { editMessage, listMessages, recallMessage, sendMessage, type Message } from '../../api/messages';
 import { ApiError } from '../../api/http';
 import { useRealtime, sendFrame } from '../../realtime';
 import { useSession } from '../../app/Session';
@@ -22,6 +22,8 @@ function toChatItem(m: Message, status: ChatItem['status'] = 'sent'): ChatItem {
     seq: m.seq,
     created_at: m.created_at,
     reply_to: m.reply_to ?? null,
+    edited_at: m.edited_at ?? null,
+    recalled_at: m.recalled_at ?? null,
     status,
   };
 }
@@ -134,6 +136,14 @@ export function ConversationRoom() {
       setMessages((prev) => mergeMessage(prev, toChatItem(m)));
       requestAnimationFrame(() => scrollToBottom(false));
       void markConversationRead(token, convId, m.seq).catch(() => undefined);
+    },
+    onMessageEdited: (m) => {
+      if (m.conversation_id !== convId) return;
+      setMessages((prev) => mergeMessage(prev, toChatItem(m)));
+    },
+    onMessageRecalled: (m) => {
+      if (m.conversation_id !== convId) return;
+      setMessages((prev) => mergeMessage(prev, toChatItem(m)));
     },
     onMessageRead: (data) => {
       if (data.conversation_id !== convId) return;
@@ -292,6 +302,26 @@ export function ConversationRoom() {
     });
   }
 
+  async function onEditMessage(m: ChatItem, newBody: string) {
+    if (!session.token || !id) return;
+    try {
+      const updated = await editMessage(session.token, id, m.id, newBody);
+      setMessages((prev) => mergeMessage(prev, toChatItem(updated)));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('common.requestFailed'));
+    }
+  }
+
+  async function onRecallMessage(m: ChatItem) {
+    if (!session.token || !id) return;
+    try {
+      const updated = await recallMessage(session.token, id, m.id);
+      setMessages((prev) => mergeMessage(prev, toChatItem(updated)));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('common.requestFailed'));
+    }
+  }
+
   if (loading) {
     return <p className="loading">{t('workspace.loadingConversation')}</p>;
   }
@@ -390,6 +420,8 @@ export function ConversationRoom() {
         listRef={listRef}
         onReply={onReply}
         onRetry={onRetry}
+        onEdit={onEditMessage}
+        onRecall={onRecallMessage}
         emptyLabel={t('workspace.noMessages')}
       />
 

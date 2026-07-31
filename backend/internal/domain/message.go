@@ -12,4 +12,6 @@ type Message struct {
 	Seq              int64
 	CreatedAt        time.Time
 	ReplyToMessageID *string
+	EditedAt         *time.Time
+	RecalledAt       *time.Time
 }

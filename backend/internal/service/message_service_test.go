@@ -85,6 +85,31 @@ func (m *memMsg) FindByIDs(_ context.Context, ids []string) (map[string]domain.M
 	return out, nil
 }
 
+func (m *memMsg) UpdateBody(_ context.Context, id, body string, editedAt time.Time) (domain.Message, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	msg, ok := m.byID[id]
+	if !ok {
+		return domain.Message{}, apperr.NotFound("message not found")
+	}
+	msg.Body = body
+	msg.EditedAt = &editedAt
+	m.byID[id] = msg
+	return msg, nil
+}
+
+func (m *memMsg) MarkRecalled(_ context.Context, id string, recalledAt time.Time) (domain.Message, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	msg, ok := m.byID[id]
+	if !ok {
+		return domain.Message{}, apperr.NotFound("message not found")
+	}
+	msg.RecalledAt = &recalledAt
+	m.byID[id] = msg
+	return msg, nil
+}
+
 type memMembers map[string]map[string]bool // conv -> user -> ok
 
 func (m memMembers) IsMember(_ context.Context, conversationID, userID string) (bool, error) {
@@ -218,5 +243,110 @@ func TestReplyPreviewTruncation(t *testing.T) {
 	}
 	if reply.ReplyTo == nil || utf8.RuneCountInString(reply.ReplyTo.Body) != replyPreviewMaxRunes {
 		t.Fatalf("preview runes=%d body=%q", utf8.RuneCountInString(reply.ReplyTo.Body), reply.ReplyTo.Body)
+	}
+}
+
+func TestMessageEdit(t *testing.T) {
+	store := newMemMsg()
+	members := memMembers{"c1": {"u1": true, "u2": true}}
+	svc := NewMessageService(store, members, nil)
+	svc.now = func() time.Time { return time.Date(2026, 7, 28, 12, 0, 0, 0, time.UTC) }
+	ctx := context.Background()
+
+	m, err := svc.Send(ctx, SendMessageInput{ConversationID: "c1", SenderID: "u1", Body: "hello", ClientMsgID: "cli-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := m.Message.ID
+
+	// Successful edit.
+	edited, err := svc.Edit(ctx, "c1", id, "u1", "  edited  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if edited.Message.Body != "edited" {
+		t.Fatalf("body = %q want edited", edited.Message.Body)
+	}
+	if edited.Message.EditedAt == nil {
+		t.Fatal("want edited_at set")
+	}
+
+	// Empty body rejected.
+	if _, err := svc.Edit(ctx, "c1", id, "u1", "  "); !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("want invalid for empty body, got %v", err)
+	}
+
+	// Not own message rejected.
+	if _, err := svc.Edit(ctx, "c1", id, "u2", "x"); !errors.Is(err, apperr.ErrForbidden) {
+		t.Fatalf("want forbidden for other's message, got %v", err)
+	}
+
+	// Non-member rejected.
+	if _, err := svc.Edit(ctx, "c1", id, "stranger", "x"); !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("want not found for stranger, got %v", err)
+	}
+}
+
+func TestMessageEditWindowExpired(t *testing.T) {
+	store := newMemMsg()
+	members := memMembers{"c1": {"u1": true, "u2": true}}
+	svc := NewMessageService(store, members, nil)
+	svc.now = func() time.Time { return time.Date(2026, 7, 28, 12, 0, 0, 0, time.UTC) }
+	ctx := context.Background()
+
+	m, err := svc.Send(ctx, SendMessageInput{ConversationID: "c1", SenderID: "u1", Body: "hello", ClientMsgID: "cli-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := m.Message.ID
+
+	// Advance beyond the 5-minute window.
+	svc.now = func() time.Time { return time.Date(2026, 7, 28, 12, 10, 0, 0, time.UTC) }
+	if _, err := svc.Edit(ctx, "c1", id, "u1", "too late"); !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("want invalid after window, got %v", err)
+	}
+	if _, err := svc.Recall(ctx, "c1", id, "u1"); !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("want invalid after window for recall, got %v", err)
+	}
+}
+
+func TestMessageRecall(t *testing.T) {
+	store := newMemMsg()
+	members := memMembers{"c1": {"u1": true, "u2": true}}
+	svc := NewMessageService(store, members, nil)
+	svc.now = func() time.Time { return time.Date(2026, 7, 28, 12, 0, 0, 0, time.UTC) }
+	ctx := context.Background()
+
+	m, err := svc.Send(ctx, SendMessageInput{ConversationID: "c1", SenderID: "u1", Body: "secret", ClientMsgID: "cli-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := m.Message.ID
+
+	recalled, err := svc.Recall(ctx, "c1", id, "u1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recalled.Message.RecalledAt == nil {
+		t.Fatal("want recalled_at set")
+	}
+
+	// Double recall rejected.
+	if _, err := svc.Recall(ctx, "c1", id, "u1"); !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("want invalid for double recall, got %v", err)
+	}
+
+	// Editing a recalled message rejected.
+	if _, err := svc.Edit(ctx, "c1", id, "u1", "new"); !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("want invalid for edit after recall, got %v", err)
+	}
+
+	// Other member cannot recall.
+	m2, err := svc.Send(ctx, SendMessageInput{ConversationID: "c1", SenderID: "u2", Body: "mine", ClientMsgID: "cli-2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Recall(ctx, "c1", m2.Message.ID, "u1"); !errors.Is(err, apperr.ErrForbidden) {
+		t.Fatalf("want forbidden for recalling other's message, got %v", err)
 	}
 }

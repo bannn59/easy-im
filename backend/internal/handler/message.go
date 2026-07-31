@@ -35,6 +35,8 @@ type messageDTO struct {
 	Seq            int64       `json:"seq"`
 	CreatedAt      string      `json:"created_at"`
 	ReplyTo        *replyToDTO `json:"reply_to"`
+	EditedAt       *string     `json:"edited_at"`
+	RecalledAt     *string     `json:"recalled_at"`
 }
 
 func toMessageDTO(v service.MessageView) messageDTO {
@@ -48,6 +50,16 @@ func toMessageDTO(v service.MessageView) messageDTO {
 		Seq:            m.Seq,
 		CreatedAt:      m.CreatedAt.UTC().Format(timeRFC3339),
 		ReplyTo:        nil,
+		EditedAt:       nil,
+		RecalledAt:     nil,
+	}
+	if m.EditedAt != nil {
+		s := m.EditedAt.UTC().Format(timeRFC3339)
+		dto.EditedAt = &s
+	}
+	if m.RecalledAt != nil {
+		s := m.RecalledAt.UTC().Format(timeRFC3339)
+		dto.RecalledAt = &s
 	}
 	if v.ReplyTo != nil {
 		dto.ReplyTo = &replyToDTO{
@@ -116,4 +128,39 @@ func (h *MessageHandler) List(w http.ResponseWriter, r *http.Request, conversati
 		out = append(out, toMessageDTO(v))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"messages": out})
+}
+
+type editMessageBody struct {
+	Body string `json:"body"`
+}
+
+func (h *MessageHandler) Edit(w http.ResponseWriter, r *http.Request, conversationID, messageID string) {
+	if h.Msg == nil {
+		WriteError(w, r, apperr.Unavailable("messages not configured"))
+		return
+	}
+	var body editMessageBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		WriteError(w, r, apperr.Invalid("invalid JSON body"))
+		return
+	}
+	v, err := h.Msg.Edit(r.Context(), conversationID, messageID, UserIDFromContext(r.Context()), body.Body)
+	if err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toMessageDTO(v))
+}
+
+func (h *MessageHandler) Recall(w http.ResponseWriter, r *http.Request, conversationID, messageID string) {
+	if h.Msg == nil {
+		WriteError(w, r, apperr.Unavailable("messages not configured"))
+		return
+	}
+	v, err := h.Msg.Recall(r.Context(), conversationID, messageID, UserIDFromContext(r.Context()))
+	if err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toMessageDTO(v))
 }

@@ -16,6 +16,8 @@ export type ChatItem = {
   status?: ChatStatus;
   localKey?: string;
   isRead?: boolean;
+  edited_at?: string | null;
+  recalled_at?: string | null;
 };
 
 export function newClientMsgId(): string {

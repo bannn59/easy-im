@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"errors"
+	"time"
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
@@ -60,11 +61,12 @@ func scanMessage(row pgx.Row) (domain.Message, error) {
 	var m domain.Message
 	err := row.Scan(
 		&m.ID, &m.ConversationID, &m.SenderID, &m.Body, &m.ClientMsgID, &m.Seq, &m.CreatedAt, &m.ReplyToMessageID,
+		&m.EditedAt, &m.RecalledAt,
 	)
 	return m, err
 }
 
-const messageSelectCols = `id, conversation_id, sender_id, body, client_msg_id, seq, created_at, reply_to_message_id`
+const messageSelectCols = `id, conversation_id, sender_id, body, client_msg_id, seq, created_at, reply_to_message_id, edited_at, recalled_at`
 
 func (r *MessageRepo) Insert(ctx context.Context, m domain.Message) (domain.Message, error) {
 	tx, err := r.pool.Begin(ctx)
@@ -227,4 +229,52 @@ func (r *MessageRepo) List(ctx context.Context, conversationID string, beforeSeq
 		tmp[i], tmp[j] = tmp[j], tmp[i]
 	}
 	return tmp, nil
+}
+
+// UpdateBody edits a message body and its edited_at. Also refreshes the
+// conversation list preview when the edited message is the conversation head.
+func (r *MessageRepo) UpdateBody(ctx context.Context, id, body string, editedAt time.Time) (domain.Message, error) {
+	m, err := scanMessage(r.pool.QueryRow(ctx, `
+		UPDATE messages SET body = $2, edited_at = $3
+		WHERE id = $1
+		RETURNING `+messageSelectCols,
+		id, body, editedAt))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Message{}, apperr.NotFound("message not found")
+		}
+		return domain.Message{}, apperr.Internal("edit message failed", err)
+	}
+	r.refreshHeadPreview(ctx, m.ConversationID, m.Seq, truncatePreview(m.Body, lastMessagePreviewMaxRunes))
+	return m, nil
+}
+
+// MarkRecalled sets recalled_at on a message. Also refreshes the conversation
+// list preview to a "[recalled]" marker when the message is the conversation head.
+func (r *MessageRepo) MarkRecalled(ctx context.Context, id string, recalledAt time.Time) (domain.Message, error) {
+	m, err := scanMessage(r.pool.QueryRow(ctx, `
+		UPDATE messages SET recalled_at = $2
+		WHERE id = $1
+		RETURNING `+messageSelectCols,
+		id, recalledAt))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Message{}, apperr.NotFound("message not found")
+		}
+		return domain.Message{}, apperr.Internal("recall message failed", err)
+	}
+	r.refreshHeadPreview(ctx, m.ConversationID, m.Seq, recalledPreview)
+	return m, nil
+}
+
+const recalledPreview = "[recalled]"
+
+// refreshHeadPreview conditionally updates last_message_preview only when the
+// given seq is still the conversation head (edit/recall of an older message
+// must not clobber the newer head's preview).
+func (r *MessageRepo) refreshHeadPreview(ctx context.Context, conversationID string, seq int64, preview string) {
+	_, _ = r.pool.Exec(ctx, `
+		UPDATE conversations SET last_message_preview = $3
+		WHERE id = $1 AND last_message_seq = $2
+	`, conversationID, seq, preview)
 }

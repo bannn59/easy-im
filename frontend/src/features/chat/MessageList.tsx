@@ -13,6 +13,8 @@ type Props = {
   listRef: RefObject<HTMLUListElement>;
   onReply: (m: ChatItem) => void;
   onRetry: (m: ChatItem) => void;
+  onEdit: (m: ChatItem, newBody: string) => void;
+  onRecall: (m: ChatItem) => void;
   emptyLabel: string;
 };
 
@@ -24,6 +26,8 @@ export function MessageList({
   listRef,
   onReply,
   onRetry,
+  onEdit,
+  onRecall,
   emptyLabel,
 }: Props) {
   const nodes: ReactNode[] = [];
@@ -48,6 +52,8 @@ export function MessageList({
         resolveSender={memberLabel}
         onReply={onReply}
         onRetry={onRetry}
+        onEdit={onEdit}
+        onRecall={onRecall}
       />,
     );
   }

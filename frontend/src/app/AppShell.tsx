@@ -150,6 +150,24 @@ export function AppShell() {
         return sortConversations(copy);
       });
     },
+    onMessageEdited: (m: Message) => {
+      setItems((prev) =>
+        prev.map((c) =>
+          c.id === m.conversation_id && c.last_message?.seq === m.seq
+            ? { ...c, last_message: { ...c.last_message, body: m.body } }
+            : c,
+        ),
+      );
+    },
+    onMessageRecalled: (m: Message) => {
+      setItems((prev) =>
+        prev.map((c) =>
+          c.id === m.conversation_id && c.last_message?.seq === m.seq
+            ? { ...c, last_message: { ...c.last_message, body: t('chat.recalledPreview') } }
+            : c,
+        ),
+      );
+    },
   });
 
   // When entering a room, zero badge optimistically; room will mark-read.

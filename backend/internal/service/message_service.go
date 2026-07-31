@@ -21,6 +21,8 @@ type MessageStore interface {
 	List(ctx context.Context, conversationID string, beforeSeq int64, limit int) ([]domain.Message, error)
 	FindByID(ctx context.Context, id string) (domain.Message, error)
 	FindByIDs(ctx context.Context, ids []string) (map[string]domain.Message, error)
+	UpdateBody(ctx context.Context, id, body string, editedAt time.Time) (domain.Message, error)
+	MarkRecalled(ctx context.Context, id string, recalledAt time.Time) (domain.Message, error)
 }
 
 // MembershipChecker verifies conversation membership.
@@ -212,11 +214,11 @@ func (s *MessageService) Send(ctx context.Context, in SendMessageInput) (Message
 			return MessageView{}, err
 		}
 	}
-	s.broadcast(ctx, view)
+	s.broadcast(ctx, view, "message.created")
 	return view, nil
 }
 
-func (s *MessageService) broadcast(ctx context.Context, v MessageView) {
+func (s *MessageService) broadcast(ctx context.Context, v MessageView, eventType string) {
 	if s.rt == nil || s.members == nil {
 		return
 	}
@@ -228,7 +230,7 @@ func (s *MessageService) broadcast(ctx context.Context, v MessageView) {
 	if err != nil {
 		return
 	}
-	s.rt.PublishToUsers(ids, hub.Event{Type: "message.created", Payload: payload})
+	s.rt.PublishToUsers(ids, hub.Event{Type: eventType, Payload: payload})
 }
 
 func messagePayload(v MessageView) map[string]any {
@@ -242,6 +244,14 @@ func messagePayload(v MessageView) map[string]any {
 		"seq":             m.Seq,
 		"created_at":      m.CreatedAt.UTC().Format(time.RFC3339),
 		"reply_to":        nil,
+		"edited_at":       nil,
+		"recalled_at":     nil,
+	}
+	if m.EditedAt != nil {
+		p["edited_at"] = m.EditedAt.UTC().Format(time.RFC3339)
+	}
+	if m.RecalledAt != nil {
+		p["recalled_at"] = m.RecalledAt.UTC().Format(time.RFC3339)
 	}
 	if v.ReplyTo != nil {
 		p["reply_to"] = map[string]any{
@@ -262,4 +272,71 @@ func (s *MessageService) List(ctx context.Context, conversationID, userID string
 		return nil, err
 	}
 	return s.hydrateViews(ctx, list)
+}
+
+const editRecallWindow = 5 * time.Minute
+
+// requireOwnRecent validates that the message exists, belongs to the actor in
+// this conversation, and is still inside the edit/recall window.
+func (s *MessageService) requireOwnRecent(ctx context.Context, conversationID, messageID, userID string) (domain.Message, error) {
+	if err := s.requireMember(ctx, conversationID, userID); err != nil {
+		return domain.Message{}, err
+	}
+	m, err := s.messages.FindByID(ctx, messageID)
+	if err != nil {
+		return domain.Message{}, err
+	}
+	if m.ConversationID != conversationID {
+		return domain.Message{}, apperr.NotFound("message not found")
+	}
+	if m.SenderID != userID {
+		return domain.Message{}, apperr.Forbidden("not your message")
+	}
+	if m.RecalledAt != nil {
+		return domain.Message{}, apperr.Invalid("message already recalled")
+	}
+	if s.now().Sub(m.CreatedAt) > editRecallWindow {
+		return domain.Message{}, apperr.Invalid("edit window expired")
+	}
+	return m, nil
+}
+
+// Edit replaces the body of an own message within the edit window.
+func (s *MessageService) Edit(ctx context.Context, conversationID, messageID, userID, body string) (MessageView, error) {
+	if _, err := s.requireOwnRecent(ctx, conversationID, messageID, userID); err != nil {
+		return MessageView{}, err
+	}
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return MessageView{}, apperr.Invalid("body is required")
+	}
+	if utf8.RuneCountInString(body) > 4000 {
+		return MessageView{}, apperr.Invalid("body too long")
+	}
+	updated, err := s.messages.UpdateBody(ctx, messageID, body, s.now().UTC())
+	if err != nil {
+		return MessageView{}, err
+	}
+	view := MessageView{Message: updated}
+	if updated.ReplyToMessageID != nil {
+		if _, preview, err := s.resolveReply(ctx, conversationID, *updated.ReplyToMessageID); err == nil {
+			view.ReplyTo = preview
+		}
+	}
+	s.broadcast(ctx, view, "message.edited")
+	return view, nil
+}
+
+// Recall marks an own message as recalled within the recall window.
+func (s *MessageService) Recall(ctx context.Context, conversationID, messageID, userID string) (MessageView, error) {
+	if _, err := s.requireOwnRecent(ctx, conversationID, messageID, userID); err != nil {
+		return MessageView{}, err
+	}
+	updated, err := s.messages.MarkRecalled(ctx, messageID, s.now().UTC())
+	if err != nil {
+		return MessageView{}, err
+	}
+	view := MessageView{Message: updated}
+	s.broadcast(ctx, view, "message.recalled")
+	return view, nil
 }

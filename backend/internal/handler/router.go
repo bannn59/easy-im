@@ -62,6 +62,12 @@ func NewMux(deps Deps) http.Handler {
 	mux.Handle("POST /v1/conversations/{id}/read", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conv.MarkRead(w, r, r.PathValue("id"))
 	})))
+	mux.Handle("PATCH /v1/conversations/{id}/messages/{messageID}", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		msg.Edit(w, r, r.PathValue("id"), r.PathValue("messageID"))
+	})))
+	mux.Handle("POST /v1/conversations/{id}/messages/{messageID}/recall", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		msg.Recall(w, r, r.PathValue("id"), r.PathValue("messageID"))
+	})))
 
 	mux.Handle("POST /v1/friends/requests", require(http.HandlerFunc(friends.SendRequest)))
 	mux.Handle("GET /v1/friends/requests/incoming", require(http.HandlerFunc(friends.ListIncoming)))
