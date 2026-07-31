@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -39,11 +40,25 @@ type ConversationService struct {
 	users   ConversationUserLookup
 	friends FriendshipChecker
 	rt      RealtimePublisher // optional; nil-safe
+	readPub ReadEventPublisher
 	now     func() time.Time
+}
+
+// ReadEventPublisher publishes read-cursor events to the bus for cross-node
+// fanout. Optional; nil-safe.
+type ReadEventPublisher interface {
+	PublishMessageRead(ctx context.Context, conversationID, userID string, lastReadSeq int64) error
 }
 
 func NewConversationService(convs ConversationStore, users ConversationUserLookup, friends FriendshipChecker, rt RealtimePublisher) *ConversationService {
 	return &ConversationService{convs: convs, users: users, friends: friends, rt: rt, now: time.Now}
+}
+
+// WithReadPublisher attaches a bus adapter; mark-read then publishes a read
+// event for cross-node delivery.
+func (s *ConversationService) WithReadPublisher(p ReadEventPublisher) *ConversationService {
+	s.readPub = p
+	return s
 }
 
 // OpenDirect get-or-creates the unique 1:1 conversation between self and peer.
@@ -161,7 +176,19 @@ func (s *ConversationService) MarkRead(ctx context.Context, conversationID, user
 		return MarkReadResult{}, err
 	}
 	s.broadcastRead(ctx, conversationID, userID, last)
+	s.publishRead(ctx, conversationID, userID, last)
 	return MarkReadResult{LastReadSeq: last, UnreadCount: 0}, nil
+}
+
+// publishRead notifies the bus of an advanced read cursor. Failures are
+// best-effort and must never block or fail the HTTP path.
+func (s *ConversationService) publishRead(ctx context.Context, conversationID, userID string, lastReadSeq int64) {
+	if s.readPub == nil {
+		return
+	}
+	if err := s.readPub.PublishMessageRead(ctx, conversationID, userID, lastReadSeq); err != nil {
+		slog.Warn("publish message read event failed", "conversation_id", conversationID, "user_id", userID, "error", err)
+	}
 }
 
 func (s *ConversationService) broadcastRead(ctx context.Context, conversationID, readerID string, lastReadSeq int64) {
@@ -172,13 +199,23 @@ func (s *ConversationService) broadcastRead(ctx context.Context, conversationID,
 	if err != nil || len(memberIDs) == 0 {
 		return
 	}
+	frame, err := s.ReadFrame(conversationID, readerID, lastReadSeq)
+	if err != nil {
+		return
+	}
+	s.rt.PublishToUsers(memberIDs, frame)
+}
+
+// ReadFrame builds the WS "message.read" hub frame, sharing the payload shape
+// with the HTTP/WS path so cross-node delivery never drifts.
+func (s *ConversationService) ReadFrame(conversationID, readerID string, lastReadSeq int64) (hub.Event, error) {
 	payload, err := json.Marshal(map[string]any{
 		"conversation_id": conversationID,
 		"reader_id":       readerID,
 		"last_read_seq":   lastReadSeq,
 	})
 	if err != nil {
-		return
+		return hub.Event{}, err
 	}
-	s.rt.PublishToUsers(memberIDs, hub.Event{Type: "message.read", Payload: payload})
+	return hub.Event{Type: "message.read", Payload: payload}, nil
 }

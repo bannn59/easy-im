@@ -43,10 +43,14 @@ type EventProducer interface {
 	Publish(ctx context.Context, topic, key string, v any) error
 }
 
-// MessageEventPublisher is a narrow bus adapter publishing a stored message
-// for offline delivery. Implemented at the process wiring layer (mq package).
+// MessageEventPublisher publishes message state changes to the event bus for
+// cross-node realtime fanout and offline delivery. Implemented at the process
+// wiring layer (app package); optional and nil-safe.
 type MessageEventPublisher interface {
 	PublishMessageCreated(ctx context.Context, m domain.Message) error
+	PublishMessageEdited(ctx context.Context, m domain.Message) error
+	PublishMessageRecalled(ctx context.Context, m domain.Message) error
+	PublishMessageRead(ctx context.Context, conversationID, userID string, lastReadSeq int64) error
 }
 
 // MessageService sends and lists messages over HTTP.
@@ -259,11 +263,40 @@ func (s *MessageService) broadcast(ctx context.Context, v MessageView, eventType
 	if err != nil || len(ids) == 0 {
 		return
 	}
-	payload, err := json.Marshal(messagePayload(v))
+	frame, err := s.frameFor(v, eventType)
 	if err != nil {
 		return
 	}
-	s.rt.PublishToUsers(ids, hub.Event{Type: eventType, Payload: payload})
+	s.rt.PublishToUsers(ids, frame)
+}
+
+// frameFor builds the WS hub frame for a message view, reusing the shared
+// message payload shape so HTTP and WS never drift.
+func (s *MessageService) frameFor(v MessageView, eventType string) (hub.Event, error) {
+	payload, err := json.Marshal(messagePayload(v))
+	if err != nil {
+		return hub.Event{}, err
+	}
+	return hub.Event{Type: eventType, Payload: payload}, nil
+}
+
+// FanoutMessage rehydrates a stored message into a WS hub frame for cross-node
+// delivery. Called by the process-local fanout consumer when it receives a bus
+// message event that originated on another node. eventType is the WS frame type
+// ("message.created" / "message.edited" / "message.recalled").
+func (s *MessageService) FanoutMessage(ctx context.Context, messageID, eventType string) (hub.Event, error) {
+	if s.messages == nil {
+		return hub.Event{}, errors.New("message store not configured")
+	}
+	m, err := s.messages.FindByID(ctx, messageID)
+	if err != nil {
+		return hub.Event{}, err
+	}
+	view, err := s.viewOf(ctx, m)
+	if err != nil {
+		return hub.Event{}, err
+	}
+	return s.frameFor(view, eventType)
 }
 
 func messagePayload(v MessageView) map[string]any {
@@ -357,7 +390,19 @@ func (s *MessageService) Edit(ctx context.Context, conversationID, messageID, us
 		}
 	}
 	s.broadcast(ctx, view, "message.edited")
+	s.publishEdited(ctx, updated)
 	return view, nil
+}
+
+// publishEdited notifies the bus of an edited message. Failures are
+// best-effort and must never block or fail the HTTP path.
+func (s *MessageService) publishEdited(ctx context.Context, m domain.Message) {
+	if s.events == nil || m.EditedAt == nil {
+		return
+	}
+	if err := s.events.PublishMessageEdited(ctx, m); err != nil {
+		slog.Warn("publish message edited event failed", "message_id", m.ID, "error", err)
+	}
 }
 
 // Recall marks an own message as recalled within the recall window.
@@ -371,5 +416,17 @@ func (s *MessageService) Recall(ctx context.Context, conversationID, messageID, 
 	}
 	view := MessageView{Message: updated}
 	s.broadcast(ctx, view, "message.recalled")
+	s.publishRecalled(ctx, updated)
 	return view, nil
+}
+
+// publishRecalled notifies the bus of a recalled message. Failures are
+// best-effort and must never block or fail the HTTP path.
+func (s *MessageService) publishRecalled(ctx context.Context, m domain.Message) {
+	if s.events == nil || m.RecalledAt == nil {
+		return
+	}
+	if err := s.events.PublishMessageRecalled(ctx, m); err != nil {
+		slog.Warn("publish message recalled event failed", "message_id", m.ID, "error", err)
+	}
 }

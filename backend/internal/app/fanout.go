@@ -1,0 +1,150 @@
+package app
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"os"
+
+	"easy-im/backend/internal/hub"
+	"easy-im/backend/internal/mq"
+	"easy-im/backend/internal/service"
+)
+
+// nodeIDFor returns a process-unique origin tag (hostname:pid). It tags bus
+// events so the fanout consumer can skip events this process produced.
+func nodeIDFor() string {
+	host, err := os.Hostname()
+	if err != nil || host == "" {
+		host = "unknown"
+	}
+	return fmt.Sprintf("%s:%d", host, os.Getpid())
+}
+
+// startFanoutConsumer launches the per-node realtime fanout consumer on a
+// background context tied to process lifetime. Kafka-less runs start nothing.
+func startFanoutConsumer(opts FanoutConsumerOpts) {
+	c, err := NewFanoutConsumer(opts)
+	if err != nil {
+		slog.Warn("realtime fanout consumer unavailable; cross-node delivery disabled", "service", "api", "error", err)
+		return
+	}
+	if c == nil {
+		return
+	}
+	log := opts.Log
+	if log == nil {
+		log = slog.Default()
+	}
+	ctx := context.Background()
+	go func() {
+		log.Info("realtime fanout consumer started", "service", "api", "node_id", opts.NodeID, "group", "easyim-realtime-"+opts.NodeID)
+		if err := c.Run(ctx, func(ctx context.Context, msg mq.Message) error {
+			return FanoutHandler(ctx, opts, msg)
+		}); err != nil {
+			log.Warn("realtime fanout consumer exited", "service", "api", "error", err)
+		}
+	}()
+}
+
+// FanoutConsumerOpts wires a per-node realtime fanout consumer.
+type FanoutConsumerOpts struct {
+	Brokers []string
+	Log     *slog.Logger
+	// NodeID is this process's origin tag; events produced by this node are
+	// skipped to avoid double delivery (local broadcast already covered them).
+	NodeID string
+	// Members resolves conversation membership for delivery scoping.
+	Members service.MembershipChecker
+	// Hub publishes the fanned-out event to this node's online connections.
+	Hub FanoutHub
+	// Msg builds "message.created/edited/recalled" frames from stored messages.
+	Msg *service.MessageService
+	// Conv builds "message.read" frames for cross-node read receipts.
+	Conv *service.ConversationService
+}
+
+// FanoutHub is the delivery surface the fanout consumer needs from the hub.
+type FanoutHub interface {
+	PublishToUsers(userIDs []string, event hub.Event)
+}
+
+// NewFanoutConsumer creates a per-node Kafka consumer that re-delivers bus
+// message events to this node's online connections. Returns nil (no consumer)
+// when brokers are not configured so the API degrades to local broadcast only.
+//
+// Each node joins its own consumer group (easyim-realtime-<nodeID>) so every
+// node reads the full stream — Kafka consumer groups are competing consumers,
+// so a shared group would deliver each record to only one node. New groups
+// start at the latest offset: realtime fanout must not replay history on first
+// join; committed offsets are still resumed on restart.
+func NewFanoutConsumer(opts FanoutConsumerOpts) (*mq.Consumer, error) {
+	if len(opts.Brokers) == 0 {
+		return nil, nil
+	}
+	return mq.NewConsumer(mq.ConsumerOpts{
+		Brokers:    opts.Brokers,
+		Group:      "easyim-realtime-" + opts.NodeID,
+		ClientID:   "easyim-realtime-" + opts.NodeID,
+		Topics:     []string{mq.TopicMessages},
+		StartAtEnd: true,
+		Log:        opts.Log,
+	})
+}
+
+// FanoutHandler handles one bus message event, re-delivering it to this node's
+// online members. Events whose origin is this node are skipped.
+func FanoutHandler(ctx context.Context, opts FanoutConsumerOpts, msg mq.Message) error {
+	var ev mq.MessageEvent
+	if err := mq.DecodeInto(msg, &ev); err != nil {
+		return err
+	}
+	if ev.Origin == opts.NodeID {
+		return nil // local broadcast already delivered on this node
+	}
+
+	var frame hub.Event
+	switch ev.EventType() {
+	case mq.MessageCreated, mq.MessageEdited, mq.MessageRecalled:
+		if opts.Msg == nil {
+			return nil
+		}
+		f, err := opts.Msg.FanoutMessage(ctx, ev.ID, wsTypeFor(ev.EventType()))
+		if err != nil {
+			return err
+		}
+		frame = f
+	case mq.MessageRead:
+		if opts.Conv == nil {
+			return nil
+		}
+		f, err := opts.Conv.ReadFrame(ev.ConversationID, ev.ReadByUserID, ev.LastReadSeq)
+		if err != nil {
+			return err
+		}
+		frame = f
+	default:
+		return nil
+	}
+
+	if opts.Members == nil || opts.Hub == nil {
+		return nil
+	}
+	memberIDs, err := opts.Members.ListMemberIDs(ctx, ev.ConversationID)
+	if err != nil || len(memberIDs) == 0 {
+		return err
+	}
+	opts.Hub.PublishToUsers(memberIDs, frame)
+	return nil
+}
+
+func wsTypeFor(t mq.MessageEventType) string {
+	switch t {
+	case mq.MessageEdited:
+		return "message.edited"
+	case mq.MessageRecalled:
+		return "message.recalled"
+	default:
+		return "message.created"
+	}
+}

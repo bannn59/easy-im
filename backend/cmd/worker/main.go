@@ -115,6 +115,11 @@ func run(ctx context.Context, pool *pgxpool.Pool, cfg config.Config, log *slog.L
 			if err := mq.DecodeInto(msg, &ev); err != nil {
 				return err
 			}
+			// Only newly sent messages trigger offline push. Edited / recalled /
+			// read events share the topic but must not spawn notifications.
+			if ev.EventType() != mq.MessageCreated {
+				return nil
+			}
 			handler.HandleMessage(ctx, ev.ToDomain())
 			return nil
 		})

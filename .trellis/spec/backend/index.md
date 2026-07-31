@@ -6,8 +6,8 @@
 
 ## Bootstrap status
 
-> Specs mix **source-backed** rules (auth, conversations, messages, in-process hub WS, `reply_to`)
-> with still-planned multi-node gateway/MQ assumptions. Prefer code paths under `backend/internal`
+> Specs mix **source-backed** rules (auth, conversations, messages, in-process hub WS, `reply_to`, multi-node fanout)
+> with still-planned multi-node gateway/Redis assumptions. Prefer code paths under `backend/internal`
 > when a bootstrap paragraph disagrees.
 
 | Assumption | Choice |
@@ -17,7 +17,7 @@
 | Transport | HTTP JSON API + WS push (`/v1/ws` on api process for now) |
 | Primary store | PostgreSQL (pgx + goose) |
 | Cache / presence | Redis (planned; not required for text MVP) |
-| Async fan-out | In-process hub now; NATS/Kafka later |
+| Async fan-out | Kafka bus (`im.messages` / `im.presence`) + per-node realtime fanout |
 
 ---
 

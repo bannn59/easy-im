@@ -21,6 +21,7 @@ bin/
 
 # Go
 backend/vendor/
+backend/api
 
 # Python
 __pycache__/

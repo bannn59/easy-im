@@ -20,6 +20,11 @@ type ConsumerOpts struct {
 	ClientID string
 	// Topics to subscribe to.
 	Topics []string
+	// StartAtEnd, when true, makes a brand-new group begin at the latest offset
+	// instead of the earliest. Offsets already committed by the group are
+	// always resumed regardless of this flag. Use for realtime fanout groups
+	// where replaying historical records on first join is undesirable.
+	StartAtEnd bool
 	// Log receives consumer-level events.
 	Log *slog.Logger
 }
@@ -42,14 +47,18 @@ type Consumer struct {
 // NewConsumer connects and returns a Consumer. Handlers are registered via
 // Register before calling Run.
 func NewConsumer(opts ConsumerOpts) (*Consumer, error) {
-	client, err := kgo.NewClient(
+	consumeOpts := []kgo.Opt{
 		kgo.SeedBrokers(opts.Brokers...),
 		kgo.ClientID(opts.ClientID),
 		kgo.ConsumerGroup(opts.Group),
 		kgo.ConsumeTopics(opts.Topics...),
 		// Commit offsets every 5s or 1k records, whichever comes first.
 		kgo.DisableAutoCommit(),
-	)
+	}
+	if opts.StartAtEnd {
+		consumeOpts = append(consumeOpts, kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()))
+	}
+	client, err := kgo.NewClient(consumeOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("new kafka consumer: %w", err)
 	}

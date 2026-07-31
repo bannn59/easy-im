@@ -6,7 +6,7 @@
 
 ## Bootstrap status
 
-**Landed (single process dev)**: `cmd/api` serves HTTP auth/conversations/messages and `GET /v1/ws`. In-process `internal/hub` fans out `message.created`, `message.read`, `typing.started`/`typing.stopped` to member user connections. Inbound WS frames (`typing.start`/`typing.stop`) are parsed and dispatched. No separate `cmd/gateway` / MQ yet — package boundaries should still allow a later split.
+**Landed (multi-node fanout)**: `cmd/api` serves HTTP auth/conversations/messages and `GET /v1/ws`. In-process `internal/hub` fans out `message.created`, `message.read`, `typing.started`/`typing.stopped` to member user connections on the local node. Cross-node delivery uses a per-node Kafka fanout consumer (`internal/app/fanout.go`): every node consumes all `im.messages` events and re-delivers them to its own online members, skipping events it produced (origin-skip). Inbound WS frames (`typing.start`/`typing.stop`) are parsed and dispatched. No separate `cmd/gateway` yet — package boundaries still allow a later split.
 
 Message send path today: **HTTP only** for writes; WS is **bidirectional** (typing commands inbound, push events outbound). Clients de-dupe by `id` / `client_msg_id`.
 
@@ -24,13 +24,22 @@ A single binary is acceptable for local dev **only** if the package boundaries s
 
 ## Offline push event bus
 
-New messages and presence transitions are published to Kafka by `cmd/api` and
-consumed by `cmd/worker` (topics in `internal/mq/topics.go`):
+Message state changes and presence transitions are published to Kafka by `cmd/api`
+and consumed by `cmd/worker` and the realtime fanout consumers (topics in
+`internal/mq/topics.go`):
 
-| Topic | Key | Producer | Consumer |
-|-------|-----|----------|----------|
-| `im.messages` | `conversation_id` | `MessageService.Send` (post-durable-write) | worker group `easyim-worker-offline-push` |
+| Topic | Key | Producer | Consumers |
+|-------|-----|----------|-----------|
+| `im.messages` | `conversation_id` | `MessageService` (Send/Edit/Recall), `ConversationService` (mark read) — all post-durable-write | worker group `easyim-worker-offline-push`; per-node realtime groups `easyim-realtime-<nodeID>` |
 | `im.presence` | `user_id` | hub online/offline transition | worker group `easyim-worker-presence` |
+
+`im.messages` records carry a `type` discriminator (`MessageEventType`): `created`,
+`edited`, `recalled`, `read`, plus an `origin` node tag.
+
+- **Worker (offline push)** handles `created` only — edited/recalled/read must not
+  spawn notifications (`cmd/worker/main.go` filters via `EventType()`).
+- **Realtime fanout** handles all four, mapping to WS frames `message.created`,
+  `message.edited`, `message.recalled`, `message.read`.
 
 - Producer is **nil-safe** (noop when `KAFKA_BROKERS` unset) so message send never
   blocks on a missing bus. Async produce uses a background context, never the
@@ -41,6 +50,38 @@ consumed by `cmd/worker` (topics in `internal/mq/topics.go`):
   (`PUSH_AGGREGATE_WINDOW`, default 2s) into a single system notification.
 - Delivery uses VAPID (`VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `PUSH_SUBJECT`);
   push service 410/404 prunes the stored subscription (`push_subscriptions`).
+
+## Multi-node realtime fanout
+
+Local hub broadcast reaches only connections on the same process. For horizontal
+scale, each API node runs its own fanout consumer (`internal/app/fanout.go`):
+
+```text
+node A send → DB → im.messages (key=conv) → [node A fanout group] [node B fanout group] [worker group]
+                                                   │                    │
+                                                   ▼                    ▼
+                                          node A hub (skip origin)   node B hub → B
+```
+
+Rules:
+
+- **Per-node consumer group**: `easyim-realtime-<nodeID>`. Kafka consumer groups
+  are competing consumers (each record goes to one member), so a *shared* group
+  would deliver each event to only one node — defeating broadcast. Every node must
+  read the full stream, hence one group per node.
+- **Origin-skip dedupe**: each event carries `origin = <hostname>:<pid>`. A node's
+  fanout consumer skips events it produced itself (its local `broadcast()` already
+  delivered on that node), so every user receives exactly one delivery per event.
+- **Start-at-end on new groups**: a fresh group begins at the latest offset
+  (realtime delivery must not replay history). Committed offsets are still resumed
+  on restart. Tradeoff: a node that restarts misses events produced while it was
+  down — acceptable because realtime is ephemeral and clients re-sync via history
+  polling (`frontend` 15s fallback) / HTTP.
+- **Event→frame reuse**: fanout frames reuse the shared message DTO shape
+  (`messagePayload` / `ReadFrame`), so cross-node payloads match local WS and HTTP.
+- Fanout consumer lifecycle: goroutine tied to process lifetime; offsets committed
+  per-record so nothing durable is lost on exit. A graceful `Close()` is not
+  required for realtime semantics.
 
 ---
 
@@ -237,9 +278,9 @@ for _, m := range list { repo.FindByID(m.ReplyTo…) }
 
 - Presence is **ephemeral**. DB may store last_seen asynchronously (not yet implemented).
 - Online = has at least one healthy gateway/hub conn.
-- **Landed (single process)**: hub tracks the online set and fires `PresenceBroadcaster` on 0↔1 connection transitions. `IsOnline` / `OnlineUserIDs` expose the set. `presence.changed` is broadcast to the user's friends via `ListFriendIDs`.
+- **Landed (multi-node)**: hub tracks the local online set and fires `PresenceBroadcaster` on 0↔1 connection transitions. `IsOnline` / `OnlineUserIDs` are node-local. `presence.changed` is broadcast to the user's friends via `ListFriendIDs` on the local node only.
 - **Never use presence as an ACL or message-history source of truth.**
-- Multi-node fan-out would go through MQ or Redis pub/sub (future).
+- Cross-node online aggregation (a user connected on node A visible to node B) is a separate future concern — see the typing/presence backlog.
 
 ---
 
@@ -264,7 +305,7 @@ Keep event payloads versioned. Producers own schema; consumers tolerate unknown 
 | Early / single region | **NATS** JetStream (or core NATS + careful durability story) |
 | Large partition / long retention / multi-team consumers | **Kafka** |
 | Simple work queues only | RabbitMQ acceptable for jobs, weaker as the canonical event log |
-| **Current dev** | In-process hub only — no durable bus yet |
+| **Current dev** | Kafka `im.messages` / `im.presence` + per-node realtime fanout |
 
 Document the choice in config and do not abstract “every bus ever” on day one. One adapter interface in `internal/mq` is enough when introduced.
 
@@ -287,7 +328,7 @@ Document the choice in config and do not abstract “every bus ever” on day on
 Assume horizontal gateway scale from the start of design (even if one node in dev):
 
 1. Local conn table is **node-local**.
-2. Cross-node delivery goes through MQ/pubsub.
+2. **Cross-node delivery goes through the Kafka fanout consumer** (landed — see "Multi-node realtime fanout" above): every node consumes all `im.messages` events and re-delivers to its own online members, origin-skipping its own events.
 3. Sticky info (user → node) can live in Redis but treat it as a hint; still publish globally for correctness under races.
 
 ---

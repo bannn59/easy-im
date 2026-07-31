@@ -55,7 +55,8 @@ func NewAPIHandler(opts APIOptions) http.Handler {
 			producer = p
 		}
 	}
-	msgAdapter := &messageEventAdapter{producer: producer}
+	nodeID := nodeIDFor()
+	msgAdapter := &messageEventAdapter{producer: producer, nodeID: nodeID}
 
 	if opts.Pool != nil && opts.AuthJWTSecret != "" {
 		users := repo.NewUserRepo(opts.Pool)
@@ -71,7 +72,7 @@ func NewAPIHandler(opts APIOptions) http.Handler {
 				TokenTTL:  opts.AuthTokenTTL,
 			},
 		)
-		conv = service.NewConversationService(convs, users, friendRepo, rtHub)
+		conv = service.NewConversationService(convs, users, friendRepo, rtHub).WithReadPublisher(msgAdapter)
 		msg = service.NewMessageService(messages, convs, rtHub).WithEventPublisher(msgAdapter)
 		friends = service.NewFriendService(friendRepo, users)
 		pushSvc = service.NewPushService(subs)
@@ -86,6 +87,19 @@ func NewAPIHandler(opts APIOptions) http.Handler {
 				At:     time.Now().UTC(),
 			})
 		}
+
+		// Cross-node realtime fanout: this node consumes every message event on
+		// the bus and re-delivers it to its own online members, skipping events
+		// it produced (local broadcast already handled those).
+		startFanoutConsumer(FanoutConsumerOpts{
+			Brokers: opts.KafkaBrokers,
+			Log:     opts.Log,
+			NodeID:  nodeID,
+			Members: members,
+			Hub:     rtHub,
+			Msg:     msg,
+			Conv:    conv,
+		})
 	}
 	return handler.NewMux(handler.Deps{
 		Pool:               opts.Pool,

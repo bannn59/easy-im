@@ -388,3 +388,44 @@ func TestConversationMarkRead(t *testing.T) {
 		t.Fatalf("want clamp to head 5, got %d", res.LastReadSeq)
 	}
 }
+
+func TestConversationMarkReadPublishesEvent(t *testing.T) {
+	users := &memConvUsers{
+		byID: map[string]domain.User{
+			"ua": {ID: "ua", Email: "a@x.com"},
+			"ub": {ID: "ub", Email: "b@x.com"},
+		},
+	}
+	convs := newMemConv()
+	friends := newMemFriends([2]string{"ua", "ub"})
+	pub := &fakeEventPublisher{}
+	svc := NewConversationService(convs, users, friends, nil).WithReadPublisher(pub)
+	c, err := svc.OpenDirect(context.Background(), "ua", "ub")
+	if err != nil {
+		t.Fatal(err)
+	}
+	seq := int64(5)
+	now := time.Now().UTC()
+	item := convs.items[c.ID]
+	item.LastMessageSeq = &seq
+	item.LastMessageAt = &now
+	preview := "hi"
+	sender := "ua"
+	item.LastMessagePreview = &preview
+	item.LastMessageSenderID = &sender
+	convs.items[c.ID] = item
+
+	if _, err := svc.MarkRead(context.Background(), c.ID, "ub", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	pub.mu.Lock()
+	defer pub.mu.Unlock()
+	if len(pub.reads) != 1 {
+		t.Fatalf("want 1 read event, got %d", len(pub.reads))
+	}
+	r := pub.reads[0]
+	if r[0] != c.ID || r[1] != "ub" || r[2] != "5" {
+		t.Fatalf("read event mismatch: %v", r)
+	}
+}

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -348,5 +349,74 @@ func TestMessageRecall(t *testing.T) {
 	}
 	if _, err := svc.Recall(ctx, "c1", m2.Message.ID, "u1"); !errors.Is(err, apperr.ErrForbidden) {
 		t.Fatalf("want forbidden for recalling other's message, got %v", err)
+	}
+}
+
+// fakeEventPublisher records the bus events the service publishes.
+type fakeEventPublisher struct {
+	mu      sync.Mutex
+	created []domain.Message
+	edited  []domain.Message
+	recalled []domain.Message
+	reads   [][3]string // conversationID, userID, seq
+}
+
+func (f *fakeEventPublisher) PublishMessageCreated(_ context.Context, m domain.Message) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.created = append(f.created, m)
+	return nil
+}
+func (f *fakeEventPublisher) PublishMessageEdited(_ context.Context, m domain.Message) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.edited = append(f.edited, m)
+	return nil
+}
+func (f *fakeEventPublisher) PublishMessageRecalled(_ context.Context, m domain.Message) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.recalled = append(f.recalled, m)
+	return nil
+}
+func (f *fakeEventPublisher) PublishMessageRead(_ context.Context, conversationID, userID string, seq int64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.reads = append(f.reads, [3]string{conversationID, userID, strconv.FormatInt(seq, 10)})
+	return nil
+}
+
+func TestMessageSendEditRecallPublishEvents(t *testing.T) {
+	store := newMemMsg()
+	members := memMembers{"c1": {"u1": true, "u2": true}}
+	pub := &fakeEventPublisher{}
+	svc := NewMessageService(store, members, nil).WithEventPublisher(pub)
+	svc.now = func() time.Time { return time.Date(2026, 7, 28, 12, 0, 0, 0, time.UTC) }
+	ctx := context.Background()
+
+	m, err := svc.Send(ctx, SendMessageInput{ConversationID: "c1", SenderID: "u1", Body: "hello", ClientMsgID: "cli-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Edit(ctx, "c1", m.Message.ID, "u1", "updated"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Recall(ctx, "c1", m.Message.ID, "u1"); err != nil {
+		t.Fatal(err)
+	}
+
+	pub.mu.Lock()
+	defer pub.mu.Unlock()
+	if len(pub.created) != 1 || len(pub.edited) != 1 || len(pub.recalled) != 1 {
+		t.Fatalf("events: created=%d edited=%d recalled=%d", len(pub.created), len(pub.edited), len(pub.recalled))
+	}
+	if pub.created[0].ID != m.Message.ID || pub.edited[0].ID != m.Message.ID || pub.recalled[0].ID != m.Message.ID {
+		t.Fatal("event message id mismatch")
+	}
+	if pub.edited[0].EditedAt == nil {
+		t.Fatal("edited event missing edited_at")
+	}
+	if pub.recalled[0].RecalledAt == nil {
+		t.Fatal("recalled event missing recalled_at")
 	}
 }
