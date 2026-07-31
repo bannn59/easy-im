@@ -580,3 +580,27 @@ Migrated auth to HttpOnly SameSite=Lax cookie sessions (JWT in cookie, Secure in
 ### Status
 
 [OK] **Completed**
+
+
+## Session 21: P6 Offline push (Web Push PWA)
+
+**Date**: 2026-07-31
+**Task**: P6 Offline push (Web Push PWA)
+**Branch**: `main`
+
+### Summary
+
+Added offline Web Push delivery. Backend: push_subscriptions table + POST/DELETE /v1/push/subscriptions + GET /v1/push/vapid; internal/push (VAPID + aes128gcm send via wuc656/webpush-go, session aggregator, offline handler, flusher with 410/404 prune); internal/mq (franz-go producer/consumer, im.messages + im.presence topics); cmd/worker consumes Kafka, learns online set from presence, pushes only offline members; MessageService.Send produces post-durable-write; hub presence events to Kafka. Frontend: public/sw.js + manifest + icons, /settings push toggle (permission → subscribe → register). go.mod upgraded 1.22 → 1.25.2 (webpush-go requirement). docker-compose gains KRaft Kafka (host 19092). E2E verified: offline push delivered (mock 201 + valid VAPID sig), stale sub pruned on 410, online members skipped.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a1170b7` | feat(push): offline Web Push delivery via Kafka worker |
+| `ea4d4b1` | feat(pwa): service worker, manifest, and push settings toggle |
+| `4ee6b57` | docs(spec): document Kafka offline-push bus and push_subscriptions |
+| `a070e58` | chore(task): record 07-31-p6-offline-push artifacts |
+
+### Status
+
+[OK] **Completed**
