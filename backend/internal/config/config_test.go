@@ -90,3 +90,39 @@ func TestLoadAuthTokenTTL(t *testing.T) {
 		t.Fatalf("ttl = %v", cfg.AuthTokenTTL)
 	}
 }
+
+func TestLoadPushDefaults(t *testing.T) {
+	t.Setenv("KAFKA_BROKERS", "")
+	t.Setenv("VAPID_PUBLIC_KEY", "")
+	t.Setenv("VAPID_PRIVATE_KEY", "")
+	t.Setenv("PUSH_SUBJECT", "")
+	t.Setenv("PUSH_AGGREGATE_WINDOW", "")
+	cfg := Load()
+	if len(cfg.KafkaBrokers) != 1 || cfg.KafkaBrokers[0] != "localhost:19092" {
+		t.Fatalf("KafkaBrokers = %v, want default localhost:19092", cfg.KafkaBrokers)
+	}
+	if cfg.VAPIDPublicKey != "" || cfg.VAPIDPrivateKey != "" || cfg.PushSubject != "" {
+		t.Fatal("VAPID fields should default empty")
+	}
+	if cfg.PushAggregateWindow != 2*time.Second {
+		t.Fatalf("PushAggregateWindow = %v, want 2s", cfg.PushAggregateWindow)
+	}
+}
+
+func TestLoadPushCustom(t *testing.T) {
+	t.Setenv("KAFKA_BROKERS", " localhost:9092, localhost:9093 ")
+	t.Setenv("VAPID_PUBLIC_KEY", "pubkey")
+	t.Setenv("VAPID_PRIVATE_KEY", "privkey")
+	t.Setenv("PUSH_SUBJECT", "mailto:dev@example.com")
+	t.Setenv("PUSH_AGGREGATE_WINDOW", "5s")
+	cfg := Load()
+	if len(cfg.KafkaBrokers) != 2 || cfg.KafkaBrokers[0] != "localhost:9092" || cfg.KafkaBrokers[1] != "localhost:9093" {
+		t.Fatalf("KafkaBrokers = %v", cfg.KafkaBrokers)
+	}
+	if cfg.VAPIDPublicKey != "pubkey" || cfg.VAPIDPrivateKey != "privkey" || cfg.PushSubject != "mailto:dev@example.com" {
+		t.Fatalf("VAPID fields = %q %q %q", cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey, cfg.PushSubject)
+	}
+	if cfg.PushAggregateWindow != 5*time.Second {
+		t.Fatalf("PushAggregateWindow = %v, want 5s", cfg.PushAggregateWindow)
+	}
+}

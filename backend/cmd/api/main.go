@@ -51,6 +51,8 @@ func main() {
 			CORSAllowedOrigins: cfg.CORSAllowedOrigins,
 			CookieSecure:       cfg.CookieSecure,
 			CookieDomain:       cfg.CookieDomain,
+			KafkaBrokers:       cfg.KafkaBrokers,
+			VAPIDPublicKey:     cfg.VAPIDPublicKey,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

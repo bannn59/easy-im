@@ -39,6 +39,11 @@ type Hub struct {
 	// Set by the WS handler; nil-safe.
 	PresenceBroadcaster func(userID string, online bool)
 
+	// PresenceEventPublisher, if set, publishes online/offline transitions to
+	// the bus so other processes (the worker) can track who is online. Called
+	// in addition to PresenceBroadcaster; nil-safe.
+	PresenceEventPublisher func(userID string, online bool)
+
 	// Typing timers: key = "conversationID:userID".
 	typingMu     sync.Mutex
 	typingTimers map[string]*time.Timer
@@ -105,6 +110,9 @@ func (h *Hub) OnlineUserIDs() []string {
 func (h *Hub) publishPresence(userID string, online bool) {
 	if h.PresenceBroadcaster != nil {
 		h.PresenceBroadcaster(userID, online)
+	}
+	if h.PresenceEventPublisher != nil {
+		h.PresenceEventPublisher(userID, online)
 	}
 }
 

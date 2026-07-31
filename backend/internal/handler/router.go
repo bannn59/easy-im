@@ -20,6 +20,8 @@ type Deps struct {
 	Conv               *service.ConversationService
 	Msg                *service.MessageService
 	Friends            *service.FriendService
+	Push               *service.PushService
+	VAPIDPublicKey     string
 	Hub                *hub.Hub
 	Members            service.MembershipChecker // for WS frame validation
 	CORSAllowedOrigins []string
@@ -49,6 +51,7 @@ func NewMux(deps Deps) http.Handler {
 	conv := &ConversationHandler{Conv: deps.Conv, Hub: deps.Hub}
 	msg := &MessageHandler{Msg: deps.Msg}
 	friends := &FriendHandler{Friends: deps.Friends, Conv: deps.Conv, Hub: deps.Hub}
+	push := &PushHandler{Push: deps.Push, VAPIDPublicKey: deps.VAPIDPublicKey}
 
 	mux.Handle("GET /v1/conversations", require(http.HandlerFunc(conv.List)))
 	mux.Handle("GET /v1/conversations/{id}", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -85,6 +88,10 @@ func NewMux(deps Deps) http.Handler {
 	mux.Handle("POST /v1/friends/{userID}/conversation", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		friends.OpenConversation(w, r, r.PathValue("userID"))
 	})))
+
+	mux.Handle("GET /v1/push/vapid", require(http.HandlerFunc(push.VAPID)))
+	mux.Handle("POST /v1/push/subscriptions", require(http.HandlerFunc(push.Register)))
+	mux.Handle("DELETE /v1/push/subscriptions", require(http.HandlerFunc(push.Unregister)))
 
 	allowedOrigins := make(map[string]struct{}, len(deps.CORSAllowedOrigins))
 	for _, o := range deps.CORSAllowedOrigins {

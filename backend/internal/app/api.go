@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"time"
@@ -9,6 +10,7 @@ import (
 
 	"easy-im/backend/internal/handler"
 	"easy-im/backend/internal/hub"
+	"easy-im/backend/internal/mq"
 	"easy-im/backend/internal/repo"
 	"easy-im/backend/internal/service"
 )
@@ -22,6 +24,8 @@ type APIOptions struct {
 	CORSAllowedOrigins []string
 	CookieSecure       bool
 	CookieDomain       string
+	KafkaBrokers       []string
+	VAPIDPublicKey     string
 }
 
 // NewAPIHandler wires HTTP handlers for cmd/api.
@@ -31,12 +35,34 @@ func NewAPIHandler(opts APIOptions) http.Handler {
 	var conv *service.ConversationService
 	var msg *service.MessageService
 	var friends *service.FriendService
+	var pushSvc *service.PushService
 	var members service.MembershipChecker
+
+	// Event bus producer. Kafka is optional: when brokers are not configured
+	// the api keeps working and simply never publishes offline-push events.
+	producer := mq.NoopProducer
+	if len(opts.KafkaBrokers) > 0 {
+		p, err := mq.NewKafkaProducer(mq.ProducerOpts{
+			Brokers: opts.KafkaBrokers,
+			ClientID: "easyim-api",
+			OnError: func(err error) {
+				slog.Warn("kafka produce failed", "service", "api", "error", err)
+			},
+		})
+		if err != nil {
+			slog.Warn("kafka producer unavailable; offline push disabled", "service", "api", "error", err)
+		} else {
+			producer = p
+		}
+	}
+	msgAdapter := &messageEventAdapter{producer: producer}
+
 	if opts.Pool != nil && opts.AuthJWTSecret != "" {
 		users := repo.NewUserRepo(opts.Pool)
 		convs := repo.NewConversationRepo(opts.Pool)
 		messages := repo.NewMessageRepo(opts.Pool)
 		friendRepo := repo.NewFriendRepo(opts.Pool)
+		subs := repo.NewPushSubscriptionRepo(opts.Pool)
 		members = convs
 		auth = service.NewAuthService(
 			users,
@@ -46,8 +72,20 @@ func NewAPIHandler(opts APIOptions) http.Handler {
 			},
 		)
 		conv = service.NewConversationService(convs, users, friendRepo, rtHub)
-		msg = service.NewMessageService(messages, convs, rtHub)
+		msg = service.NewMessageService(messages, convs, rtHub).WithEventPublisher(msgAdapter)
 		friends = service.NewFriendService(friendRepo, users)
+		pushSvc = service.NewPushService(subs)
+
+		// Publish presence transitions to the bus so the worker can track
+		// online state. Non-blocking best effort; the immediate friend
+		// broadcast is set separately by the WS handler.
+		rtHub.PresenceEventPublisher = func(userID string, online bool) {
+			_ = producer.Publish(context.Background(), mq.TopicPresence, userID, mq.PresenceEvent{
+				UserID: userID,
+				Online: online,
+				At:     time.Now().UTC(),
+			})
+		}
 	}
 	return handler.NewMux(handler.Deps{
 		Pool:               opts.Pool,
@@ -56,6 +94,8 @@ func NewAPIHandler(opts APIOptions) http.Handler {
 		Conv:               conv,
 		Msg:                msg,
 		Friends:            friends,
+		Push:               pushSvc,
+		VAPIDPublicKey:     opts.VAPIDPublicKey,
 		Hub:                rtHub,
 		Members:            members,
 		CORSAllowedOrigins: opts.CORSAllowedOrigins,

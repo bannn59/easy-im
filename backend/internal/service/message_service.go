@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -36,16 +37,36 @@ type RealtimePublisher interface {
 	PublishToUsers(userIDs []string, event hub.Event)
 }
 
+// EventProducer publishes message events to the bus for offline consumers
+// (the worker). Optional; when nil, message send skips bus publication.
+type EventProducer interface {
+	Publish(ctx context.Context, topic, key string, v any) error
+}
+
+// MessageEventPublisher is a narrow bus adapter publishing a stored message
+// for offline delivery. Implemented at the process wiring layer (mq package).
+type MessageEventPublisher interface {
+	PublishMessageCreated(ctx context.Context, m domain.Message) error
+}
+
 // MessageService sends and lists messages over HTTP.
 type MessageService struct {
-	messages MessageStore
-	members  MembershipChecker
-	rt       RealtimePublisher
-	now      func() time.Time
+	messages  MessageStore
+	members   MembershipChecker
+	rt        RealtimePublisher
+	events    MessageEventPublisher
+	now       func() time.Time
 }
 
 func NewMessageService(messages MessageStore, members MembershipChecker, rt RealtimePublisher) *MessageService {
 	return &MessageService{messages: messages, members: members, rt: rt, now: time.Now}
+}
+
+// WithEventPublisher attaches a bus adapter; message sends then publish a
+// msg.created event for offline delivery.
+func (s *MessageService) WithEventPublisher(p MessageEventPublisher) *MessageService {
+	s.events = p
+	return s
 }
 
 type SendMessageInput struct {
@@ -215,7 +236,19 @@ func (s *MessageService) Send(ctx context.Context, in SendMessageInput) (Message
 		}
 	}
 	s.broadcast(ctx, view, "message.created")
+	s.publishEvent(ctx, out)
 	return view, nil
+}
+
+// publishEvent notifies the bus of a durably stored message. Failures are
+// best-effort and must never block or fail the HTTP send path.
+func (s *MessageService) publishEvent(ctx context.Context, m domain.Message) {
+	if s.events == nil {
+		return
+	}
+	if err := s.events.PublishMessageCreated(ctx, m); err != nil {
+		slog.Warn("publish message event failed", "message_id", m.ID, "error", err)
+	}
 }
 
 func (s *MessageService) broadcast(ctx context.Context, v MessageView, eventType string) {
