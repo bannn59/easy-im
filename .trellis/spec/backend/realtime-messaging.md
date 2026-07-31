@@ -45,6 +45,8 @@ HTTP Upgrade /v1/ws?token=… (or Authorization) → hub register(userID) → pu
 
 ```json
 { "type": "message.created", "payload": { /* message DTO */ } }
+{ "type": "message.edited", "payload": { /* message DTO with edited_at */ } }
+{ "type": "message.recalled", "payload": { /* message DTO with recalled_at */ } }
 { "type": "message.read", "payload": { "conversation_id", "reader_id", "last_read_seq" } }
 { "type": "typing.started", "payload": { "conversation_id", "user_id" } }
 { "type": "typing.stopped", "payload": { "conversation_id", "user_id" } }
@@ -138,16 +140,20 @@ type SendMessageInput struct {
 | `client_msg_id` | string | required, trim, len ≤ 128 |
 | `reply_to_message_id` | string | optional; empty/omit = none |
 
-**Message DTO / WS `message.created` payload** (HTTP and WS **must match**)
+**Message DTO / WS `message.*` payload** (HTTP and WS **must match**)
 
 | Field | Type | Notes |
 |-------|------|-------|
 | `id`, `conversation_id`, `sender_id` | string | UUIDs |
-| `body` | string | full text |
+| `body` | string | full text; on recall the client renders a placeholder instead |
 | `client_msg_id` | string | |
 | `seq` | number | int64 |
 | `created_at` | string | RFC3339 UTC |
+| `edited_at` | string \| null | set when the message was edited |
+| `recalled_at` | string \| null | set when the message was recalled |
 | `reply_to` | object \| null | explicit null when none / target gone |
+
+Edit/recall are own-message-only and limited to a 5-minute window after send (backend-enforced).
 
 **`reply_to` object**
 
