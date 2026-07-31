@@ -18,9 +18,29 @@ Message send path today: **HTTP only** for writes; WS is **bidirectional** (typi
 |---------|------|--------|
 | `cmd/api` | Auth, REST/JSON, history, **dev hub WS** | Landed |
 | `cmd/gateway` | Maintain WS connections at scale | Planned |
-| `cmd/worker` | MQ fan-out, offline push, jobs | Planned |
+| `cmd/worker` | **Kafka consumer: offline Web Push delivery** | Landed |
 
 A single binary is acceptable for local dev **only** if the package boundaries still match the split above.
+
+## Offline push event bus
+
+New messages and presence transitions are published to Kafka by `cmd/api` and
+consumed by `cmd/worker` (topics in `internal/mq/topics.go`):
+
+| Topic | Key | Producer | Consumer |
+|-------|-----|----------|----------|
+| `im.messages` | `conversation_id` | `MessageService.Send` (post-durable-write) | worker group `easyim-worker-offline-push` |
+| `im.presence` | `user_id` | hub online/offline transition | worker group `easyim-worker-presence` |
+
+- Producer is **nil-safe** (noop when `KAFKA_BROKERS` unset) so message send never
+  blocks on a missing bus. Async produce uses a background context, never the
+  request context (avoids "context canceled" after the handler returns).
+- Consumer commits offsets after each handler returns (at-least-once).
+- Worker keeps a local online set from `im.presence`; a member is "offline" when
+  not in that set, then queued through a per-conversation aggregation window
+  (`PUSH_AGGREGATE_WINDOW`, default 2s) into a single system notification.
+- Delivery uses VAPID (`VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `PUSH_SUBJECT`);
+  push service 410/404 prunes the stored subscription (`push_subscriptions`).
 
 ---
 

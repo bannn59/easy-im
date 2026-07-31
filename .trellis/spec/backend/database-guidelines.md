@@ -9,7 +9,7 @@
 Landed: Postgres via **pgx** pool (`internal/db`), **goose** SQL under `backend/migrations/`,
 `cmd/migrate`, and local `docker-compose.yml` (host port **5433**).
 
-Schema so far: `users` (with `display_name`), `conversations`, `conversation_members`, `messages` (with `next_seq` on conversations), optional `messages.reply_to_message_id`, `friend_requests`, and `friendships`.
+Schema so far: `users` (with `display_name`), `conversations`, `conversation_members`, `messages` (with `next_seq` on conversations), optional `messages.reply_to_message_id`, `friend_requests`, `friendships`, and `push_subscriptions` (P6 Web Push).
 
 Repo pattern: `internal/repo` with explicit SQL; domain types in `internal/domain`.
 
@@ -111,6 +111,14 @@ List DTO includes `last_message`, `unread_count`, optional `member_count` + `las
 | Service rule | also reject reverse pending for the same pair (either side already asked) |
 | Reject / re-request | reject leaves no friendship; a later request may insert a new pending row |
 | `friendships` | undirected edge with canonical `user_a_id < user_b_id` (UUID string order); PK `(user_a_id, user_b_id)` |
+
+### Push subscriptions (landed, P6 offline push)
+
+| Store | Columns / rule |
+|-------|----------------|
+| `push_subscriptions` | `user_id` FK → `users`; `endpoint` (push service URL); `p256dh` / `auth` (base64url browser keys); unique `(user_id, endpoint)` |
+| Upsert | `INSERT ... ON CONFLICT (user_id, endpoint) DO UPDATE` refreshes keys |
+| Cleanup | worker prunes rows when the push service returns 410/404 (`DELETE BY endpoint`)
 | Accept | same tx: mark request accepted + insert friendship (`ON CONFLICT DO NOTHING`) + clear reverse pending if any |
 
 Discovery is email-only via `users.email`. Delete-friend / block / notes are out of scope for the relation MVP.
