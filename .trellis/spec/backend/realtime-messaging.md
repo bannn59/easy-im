@@ -29,10 +29,14 @@ A single binary is acceptable for local dev **only** if the package boundaries s
 ### Lifecycle (current)
 
 ```text
-HTTP Upgrade /v1/ws?token=… (or Authorization) → hub register(userID) → push frames → close
+HTTP Upgrade /v1/ws (cookie-auth) → hub register(userID) → push frames → close
 ```
 
-- Authenticate before treating the conn as a user socket.
+- Authenticate before treating the conn as a user socket: read the `easyim_session`
+  HttpOnly cookie (same JWT as HTTP auth). **No `?token=` query param** — it leaks into
+  logs/history.
+- `CheckOrigin` must validate the WS `Origin` against the CORS allowlist (cross-site
+  WS would otherwise ride the cookie).
 - Hub maps `userID → set of *Client` (multi-device ready).
 - Reconnect is client-driven with backoff (`frontend/src/realtime`).
 - Inbound client frames are parsed by `Hub.ReadPump` and dispatched via `Hub.FrameHandler`.

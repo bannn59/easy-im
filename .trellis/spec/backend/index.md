@@ -27,6 +27,7 @@
 |-------|-------------|--------|
 | [Directory Structure](./directory-structure.md) | `cmd/`, `internal/`, package boundaries | Bootstrap |
 | [Database Guidelines](./database-guidelines.md) | SQL, migrations, messages + reply_to | Source-backed |
+| [Auth & Session](./auth-session.md) | Cookie sessions, JWT, CORS | Source-backed |
 | [Realtime & Messaging](./realtime-messaging.md) | Hub WS, message DTO, reply_to scenario | Source-backed |
 | [Error Handling](./error-handling.md) | Domain errors → HTTP | Source-backed |
 | [Logging Guidelines](./logging-guidelines.md) | Structured logs, request/conn IDs | Bootstrap |
