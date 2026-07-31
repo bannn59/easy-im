@@ -514,3 +514,25 @@ Implemented online/offline presence dots: hub IsOnline/OnlineUserIDs + PresenceB
 ### Status
 
 [OK] **Completed**
+
+
+## Session 18: P5.d Settings page (profile, display name, password)
+
+**Date**: 2026-07-31
+**Task**: P5.d Settings page (profile, display name, password)
+**Branch**: `main`
+
+### Summary
+
+Implemented full settings page: users.display_name migration, AuthService UpdateDisplayName (max 64 runes) + ChangePassword (bcrypt verify current), UserRepo FindRecordByID/UpdateDisplayName/UpdatePassword with display_name in all user selects, PATCH /v1/me/profile + POST /v1/me/password, /v1/me returns profile with created_at, CORS allows PATCH. Frontend: /settings page with profile/display-name/password forms, Session refreshUser, chat UI prefers display_name over email short-name. Tokens kept valid after password change.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a08521c` | (see git log) |
+| `72e10fc` | (see git log) |
+
+### Status
+
+[OK] **Completed**

@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 17
+- **Total Sessions**: 18
 - **Last Active**: 2026-07-31
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~516 | Active |
+| `journal-1.md` | ~538 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 18 | 2026-07-31 | P5.d Settings page (profile, display name, password) | `a08521c`, `72e10fc` | `main` |
 | 17 | 2026-07-31 | P5.c Online presence (presence dots) | `a31ce78`, `a92cd42` | `main` |
 | 16 | 2026-07-29 | P5.a Read receipts + P5.b Typing indicators | `39141d1`, `7fd2a77` | `main` |
 | 15 | 2026-07-29 | 好友驱动开聊（替代邮箱建会话） | `88c4084`, `2ef1a01`, `1fcd66e` | `main` |
