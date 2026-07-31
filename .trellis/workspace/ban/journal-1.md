@@ -536,3 +536,25 @@ Implemented full settings page: users.display_name migration, AuthService Update
 ### Status
 
 [OK] **Completed**
+
+
+## Session 19: P5.e Message edit and recall
+
+**Date**: 2026-07-31
+**Task**: P5.e Message edit and recall
+**Branch**: `main`
+
+### Summary
+
+Implemented message edit and recall: messages.edited_at/recalled_at migration, MessageRepo UpdateBody/MarkRecalled with conditional head-preview refresh, MessageService Edit/Recall (own-message-only, 5-min window, no double recall), PATCH messages/{id} + POST messages/{id}/recall, message.edited/message.recalled WS events with full DTO. Frontend: bubble edit mode, recall button, recalled placeholder (no hard delete), edited marker, conversation-list preview updates. Completes all five P5 items.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1bea908` | (see git log) |
+| `beea97d` | (see git log) |
+
+### Status
+
+[OK] **Completed**
