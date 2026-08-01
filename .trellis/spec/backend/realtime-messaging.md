@@ -6,7 +6,7 @@
 
 ## Bootstrap status
 
-**Landed (multi-node fanout)**: `cmd/api` serves HTTP auth/conversations/messages and `GET /v1/ws`. In-process `internal/hub` fans out `message.created`, `message.read`, `typing.started`/`typing.stopped` to member user connections on the local node. Cross-node delivery uses a per-node Kafka fanout consumer (`internal/app/fanout.go`): every node consumes all `im.messages` events and re-delivers them to its own online members, skipping events it produced (origin-skip). Inbound WS frames (`typing.start`/`typing.stop`) are parsed and dispatched. No separate `cmd/gateway` yet — package boundaries still allow a later split.
+**Landed (multi-node fanout)**: `cmd/api` serves HTTP auth/conversations/messages and `GET /v1/ws`. In-process `internal/hub` fans out `message.created`, `message.read`, `typing.started`/`typing.stopped`, `members.changed`, `conversation.renamed` to member user connections on the local node. Cross-node delivery uses a per-node Kafka fanout consumer (`internal/app/fanout.go`): every node consumes all `im.messages` events (message + group events) and re-delivers them to its own online members, skipping events it produced (origin-skip). Inbound WS frames (`typing.start`/`typing.stop`) are parsed and dispatched. No separate `cmd/gateway` yet — package boundaries still allow a later split.
 
 Message send path today: **HTTP only** for writes; WS is **bidirectional** (typing commands inbound, push events outbound). Clients de-dupe by `id` / `client_msg_id`.
 
@@ -30,16 +30,18 @@ and consumed by `cmd/worker` and the realtime fanout consumers (topics in
 
 | Topic | Key | Producer | Consumers |
 |-------|-----|----------|-----------|
-| `im.messages` | `conversation_id` | `MessageService` (Send/Edit/Recall), `ConversationService` (mark read) — all post-durable-write | worker group `easyim-worker-offline-push`; per-node realtime groups `easyim-realtime-<nodeID>` |
+| `im.messages` | `conversation_id` | `MessageService` (Send/Edit/Recall), `ConversationService` (mark read, group member ops, group rename) — all post-durable-write | worker group `easyim-worker-offline-push`; per-node realtime groups `easyim-realtime-<nodeID>` |
 | `im.presence` | `user_id` | hub online/offline transition | worker group `easyim-worker-presence` |
 
 `im.messages` records carry a `type` discriminator (`MessageEventType`): `created`,
-`edited`, `recalled`, `read`, plus an `origin` node tag.
+`edited`, `recalled`, `read`, `group.members_changed`, `group.conversation_renamed`,
+plus an `origin` node tag.
 
-- **Worker (offline push)** handles `created` only — edited/recalled/read must not
+- **Worker (offline push)** handles `created` only — edited/recalled/read/group events must not
   spawn notifications (`cmd/worker/main.go` filters via `EventType()`).
-- **Realtime fanout** handles all four, mapping to WS frames `message.created`,
-  `message.edited`, `message.recalled`, `message.read`.
+- **Realtime fanout** handles all six, mapping to WS frames `message.created`,
+  `message.edited`, `message.recalled`, `message.read`, `members.changed`,
+  `conversation.renamed`.
 
 - Producer is **nil-safe** (noop when `KAFKA_BROKERS` unset) so message send never
   blocks on a missing bus. Async produce uses a background context, never the
@@ -122,7 +124,7 @@ HTTP Upgrade /v1/ws (cookie-auth) → hub register(userID) → push frames → c
 
 - `members.changed` (`action`: `added` | `left` | `kicked` | `owner_transferred`): broadcast to all members after a membership/owner change (`ConversationService` member ops).
 - `conversation.renamed`: broadcast to all members after a group rename (`PATCH /v1/conversations/{id}`, owner only). Includes the new `title` so clients patch their copy without re-fetching.
-- These group/rename events are currently **local-node only** (in-process hub fanout, like `members.changed`); they do not ride the Kafka `im.messages` bus. Cross-node delivery for them is a known gap.
+- These group/rename events **ride the Kafka `im.messages` bus** with bus types `group.members_changed` / `group.conversation_renamed` (`MessageEventType`). `ConversationService` publishes them via `WithGroupEventPublisher` after the local hub broadcast; the per-node fanout consumer rebuilds the WS frames and re-delivers on remote nodes (origin-skip prevents double delivery on the local node). `members.changed` carries its post-change `member_ids` in the event so fanout scopes delivery without re-querying; `conversation.renamed` re-queries membership via `Members.ListMemberIDs` (rename does not change membership). Worker offline-push consumer ignores both (`EventType() != MessageCreated`).
 
 **Client → Server:**
 
