@@ -9,6 +9,7 @@ import { useSession } from '../../app/Session';
 import { Composer, type ComposerReply } from './Composer';
 import { MessageList } from './MessageList';
 import AddMembersDialog from './AddMembersDialog';
+import SearchPanel from './SearchPanel';
 import { displayName, mergeMessage, newClientMsgId, type ChatItem } from './types';
 
 const NEAR_BOTTOM_PX = 80;
@@ -49,6 +50,8 @@ export function ConversationRoom() {
   const [showAddMembers, setShowAddMembers] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
   const typingTimers = useRef<Map<string, number>>(new Map());
   const lastTypingSent = useRef(0);
   const listRef = useRef<HTMLUListElement>(null!);
@@ -84,6 +87,33 @@ export function ConversationRoom() {
     const res = await listMessages(id, { limit: 100 });
     setMessages((res.messages ?? []).map((m) => toChatItem(m)));
   }, [session.user, id]);
+
+  // Jump to a search result: load the window around its seq and highlight it.
+  const jumpToMessage = useCallback(
+    async (seq: number, messageId: string) => {
+      if (!session.user || !id) return;
+      try {
+        const res = await listMessages(id, { around_seq: seq, limit: 100 });
+        stickToBottom.current = false;
+        setMessages((res.messages ?? []).map((m) => toChatItem(m)));
+        setHighlightId(messageId);
+        // Position the target after the list re-renders.
+        requestAnimationFrame(() => {
+          const el = listRef.current;
+          if (!el) return;
+          const target = el.querySelector(`[data-message-id="${messageId}"]`);
+          if (target) {
+            target.scrollIntoView({ block: 'center' });
+          } else {
+            el.scrollTop = el.scrollHeight;
+          }
+        });
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : t('common.failedToLoad'));
+      }
+    },
+    [session.user, id, t],
+  );
 
   useEffect(() => {
     if (!session.user || !id) return;
@@ -484,8 +514,20 @@ export function ConversationRoom() {
             {t('chat.members')}
           </button>
         )}
+        <button type="button" className="btn btn--ghost" onClick={() => setShowSearch((v) => !v)}>
+          {t('chat.search')}
+        </button>
       </header>
 
+      {showSearch && (
+        <SearchPanel
+          conversationId={id!}
+          members={members}
+          selfId={session.user?.id}
+          onJump={(seq, messageId) => void jumpToMessage(seq, messageId)}
+          onClose={() => setShowSearch(false)}
+        />
+      )}
       {showMembers && isGroup && (
         <aside className="room__members" aria-label={t('chat.members')}>
           <h2 className="room__members-title">{t('chat.members')}</h2>
@@ -579,6 +621,7 @@ export function ConversationRoom() {
         onEdit={onEditMessage}
         onRecall={onRecallMessage}
         emptyLabel={t('workspace.noMessages')}
+        highlightId={highlightId ?? undefined}
       />
 
       {typingLabel && (

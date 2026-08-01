@@ -14,6 +14,8 @@ type Props = {
   onRetry?: (m: ChatItem) => void;
   onEdit?: (m: ChatItem, newBody: string) => void;
   onRecall?: (m: ChatItem) => void;
+  /** Set when this message is the search jump target (visual highlight). */
+  highlight?: boolean;
 };
 
 const EDIT_WINDOW_MS = 5 * 60 * 1000;
@@ -37,6 +39,7 @@ export function MessageBubble({
   onRetry,
   onEdit,
   onRecall,
+  highlight = false,
 }: Props) {
   const { t } = useTranslation();
   const status = message.status ?? 'sent';
@@ -68,8 +71,9 @@ export function MessageBubble({
     <li
       className={`bubble-item ${mine ? 'bubble-item--mine' : 'bubble-item--theirs'}${
         showSender ? ' bubble-item--named' : ''
-      }${recalled ? ' bubble-item--recalled' : ''}`}
+      }${recalled ? ' bubble-item--recalled' : ''}${highlight ? ' bubble-item--highlight' : ''}`}
       data-status={status}
+      data-message-id={message.id}
     >
       {showSender && !mine && <div className="bubble-sender">{name}</div>}
       <div className="bubble-row">

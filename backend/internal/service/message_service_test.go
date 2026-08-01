@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -64,6 +65,55 @@ func (m *memMsg) List(_ context.Context, conversationID string, beforeSeq int64,
 	return filtered, nil
 }
 
+func (m *memMsg) Search(_ context.Context, conversationID, query string, beforeSeq int64, limit int) ([]domain.Message, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var out []domain.Message
+	for _, msg := range m.list[conversationID] {
+		if msg.RecalledAt != nil {
+			continue
+		}
+		if !strings.Contains(strings.ToLower(msg.Body), strings.ToLower(query)) {
+			continue
+		}
+		if beforeSeq > 0 && msg.Seq >= beforeSeq {
+			continue
+		}
+		out = append(out, msg)
+	}
+	// newest first
+	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
+		out[i], out[j] = out[j], out[i]
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+func (m *memMsg) ListAround(_ context.Context, conversationID string, aroundSeq int64, window int) ([]domain.Message, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var out []domain.Message
+	for _, msg := range m.list[conversationID] {
+		if msg.Seq >= aroundSeq-int64(window) && msg.Seq <= aroundSeq+int64(window) {
+			out = append(out, msg)
+		}
+	}
+	// seq ascending
+	for i := 0; i < len(out); i++ {
+		for j := i + 1; j < len(out); j++ {
+			if out[j].Seq < out[i].Seq {
+				out[i], out[j] = out[j], out[i]
+			}
+		}
+	}
+	return out, nil
+}
+
 func (m *memMsg) FindByID(_ context.Context, id string) (domain.Message, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -108,6 +158,14 @@ func (m *memMsg) MarkRecalled(_ context.Context, id string, recalledAt time.Time
 	}
 	msg.RecalledAt = &recalledAt
 	m.byID[id] = msg
+	// Refresh the list slice so Search/ListAround observe the recall.
+	for conv := range m.list {
+		for i := range m.list[conv] {
+			if m.list[conv][i].ID == id {
+				m.list[conv][i] = msg
+			}
+		}
+	}
 	return msg, nil
 }
 
@@ -418,5 +476,113 @@ func TestMessageSendEditRecallPublishEvents(t *testing.T) {
 	}
 	if pub.recalled[0].RecalledAt == nil {
 		t.Fatal("recalled event missing recalled_at")
+	}
+}
+
+func TestMessageSearch(t *testing.T) {
+	store := newMemMsg()
+	members := memMembers{"c1": {"u1": true, "u2": true}}
+	svc := NewMessageService(store, members, nil)
+	ctx := context.Background()
+
+	// Seed messages via Send (mock seq starts at 1: seqs 1..4).
+	send := func(body, sender string) domain.Message {
+		m, err := svc.Send(ctx, SendMessageInput{ConversationID: "c1", SenderID: sender, Body: body, ClientMsgID: body})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return m.Message
+	}
+	send("hello world", "u1")       // seq 1
+	send("goodbye planet", "u2")    // seq 2
+	send("Hello again", "u1")       // seq 3
+	recalled := send("secret hello", "u2") // seq 4
+	if _, err := svc.Recall(ctx, "c1", recalled.ID, "u2"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Case-insensitive match, recalled excluded.
+	res, err := svc.Search(ctx, "c1", "u1", "hello", 0, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res) != 2 {
+		t.Fatalf("want 2 hits, got %d", len(res))
+	}
+	// Newest first: seq 3 then seq 1 (seq 4 recalled excluded).
+	if res[0].Message.Seq != 3 || res[1].Message.Seq != 1 {
+		t.Fatalf("seq order wrong: %d %d", res[0].Message.Seq, res[1].Message.Seq)
+	}
+}
+
+func TestMessageSearchBlankQuery(t *testing.T) {
+	store := newMemMsg()
+	members := memMembers{"c1": {"u1": true}}
+	svc := NewMessageService(store, members, nil)
+	_, err := svc.Search(context.Background(), "c1", "u1", "   ", 0, 50)
+	if !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("err = %v, want invalid", err)
+	}
+}
+
+func TestMessageSearchNonMember(t *testing.T) {
+	store := newMemMsg()
+	members := memMembers{"c1": {"u1": true}}
+	svc := NewMessageService(store, members, nil)
+	_, err := svc.Search(context.Background(), "c1", "ghost", "hello", 0, 50)
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("err = %v, want not found", err)
+	}
+}
+
+func TestMessageListAround(t *testing.T) {
+	store := newMemMsg()
+	members := memMembers{"c1": {"u1": true}}
+	svc := NewMessageService(store, members, nil)
+	ctx := context.Background()
+
+	var ids []string
+	for i := 0; i < 10; i++ {
+		m, err := svc.Send(ctx, SendMessageInput{ConversationID: "c1", SenderID: "u1", Body: "msg " + strconv.Itoa(i), ClientMsgID: "cli-" + strconv.Itoa(i)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, m.Message.ID)
+	}
+	// Recall one inside the window (seqs 1..10; ids[4] is seq 5) to verify
+	// ListAround includes recalled messages for jump positioning.
+	if _, err := svc.Recall(ctx, "c1", ids[4], "u1"); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := svc.ListAround(ctx, "c1", "u1", 5, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res) != 5 {
+		t.Fatalf("want window size 5 (seq 3..7), got %d", len(res))
+	}
+	// Ascending seq, includes the recalled seq 5.
+	if res[0].Message.Seq != 3 || res[len(res)-1].Message.Seq != 7 {
+		t.Fatalf("window bounds wrong: first=%d last=%d", res[0].Message.Seq, res[len(res)-1].Message.Seq)
+	}
+	foundRecalled := false
+	for _, v := range res {
+		if v.Message.Seq == 5 && v.Message.RecalledAt != nil {
+			foundRecalled = true
+		}
+	}
+	if !foundRecalled {
+		t.Fatal("ListAround should include recalled message")
+	}
+}
+
+func TestMessageListAroundNonMember(t *testing.T) {
+	store := newMemMsg()
+	members := memMembers{"c1": {"u1": true}}
+	svc := NewMessageService(store, members, nil)
+	_, err := svc.ListAround(context.Background(), "c1", "ghost", 5, 2)
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("err = %v, want not found", err)
 	}
 }

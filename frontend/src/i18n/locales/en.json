@@ -99,7 +99,12 @@
     "recalledPreview": "[recalled]",
     "renameGroup": "Rename group",
     "renameGroupPlaceholder": "Group name",
-    "renameBlank": "Group name cannot be empty"
+    "renameBlank": "Group name cannot be empty",
+    "search": "Search",
+    "searchTitle": "Search messages",
+    "searchPlaceholder": "Search this conversation…",
+    "searchEmpty": "No messages match \"{{q}}\".",
+    "searchMore": "Load more"
   },
   "friends": {
     "eyebrow": "Contacts",

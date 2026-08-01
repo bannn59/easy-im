@@ -16,6 +16,8 @@ type Props = {
   onEdit: (m: ChatItem, newBody: string) => void;
   onRecall: (m: ChatItem) => void;
   emptyLabel: string;
+  /** Message id to highlight (search jump target). */
+  highlightId?: string;
 };
 
 export function MessageList({
@@ -29,6 +31,7 @@ export function MessageList({
   onEdit,
   onRecall,
   emptyLabel,
+  highlightId,
 }: Props) {
   const nodes: ReactNode[] = [];
   let lastTs = 0;
@@ -54,6 +57,7 @@ export function MessageList({
         onRetry={onRetry}
         onEdit={onEdit}
         onRecall={onRecall}
+        highlight={m.id === highlightId}
       />,
     );
   }

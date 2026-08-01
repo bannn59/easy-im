@@ -21,6 +21,8 @@ import (
 type MessageStore interface {
 	Insert(ctx context.Context, m domain.Message) (domain.Message, error)
 	List(ctx context.Context, conversationID string, beforeSeq int64, limit int) ([]domain.Message, error)
+	Search(ctx context.Context, conversationID, query string, beforeSeq int64, limit int) ([]domain.Message, error)
+	ListAround(ctx context.Context, conversationID string, aroundSeq int64, window int) ([]domain.Message, error)
 	FindByID(ctx context.Context, id string) (domain.Message, error)
 	FindByIDs(ctx context.Context, ids []string) (map[string]domain.Message, error)
 	UpdateBody(ctx context.Context, id, body string, editedAt time.Time) (domain.Message, error)
@@ -336,6 +338,35 @@ func (s *MessageService) List(ctx context.Context, conversationID, userID string
 		return nil, err
 	}
 	list, err := s.messages.List(ctx, conversationID, beforeSeq, limit)
+	if err != nil {
+		return nil, err
+	}
+	return s.hydrateViews(ctx, list)
+}
+
+// Search returns messages in a conversation whose body contains query,
+// newest-first. Recalled messages are excluded. Requires membership.
+func (s *MessageService) Search(ctx context.Context, conversationID, userID, query string, beforeSeq int64, limit int) ([]MessageView, error) {
+	if err := s.requireMember(ctx, conversationID, userID); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(query) == "" {
+		return nil, apperr.Invalid("search query is required")
+	}
+	list, err := s.messages.Search(ctx, conversationID, query, beforeSeq, limit)
+	if err != nil {
+		return nil, err
+	}
+	return s.hydrateViews(ctx, list)
+}
+
+// ListAround returns the window of messages around aroundSeq (seq ascending,
+// includes recalled) for jump-to-position. Requires membership.
+func (s *MessageService) ListAround(ctx context.Context, conversationID, userID string, aroundSeq int64, window int) ([]MessageView, error) {
+	if err := s.requireMember(ctx, conversationID, userID); err != nil {
+		return nil, err
+	}
+	list, err := s.messages.ListAround(ctx, conversationID, aroundSeq, window)
 	if err != nil {
 		return nil, err
 	}

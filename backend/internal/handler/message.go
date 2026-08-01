@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"easy-im/backend/internal/apperr"
 	"easy-im/backend/internal/service"
@@ -100,8 +101,9 @@ func (h *MessageHandler) List(w http.ResponseWriter, r *http.Request, conversati
 		WriteError(w, r, apperr.Unavailable("messages not configured"))
 		return
 	}
+	q := r.URL.Query()
 	var before int64
-	if raw := r.URL.Query().Get("before_seq"); raw != "" {
+	if raw := q.Get("before_seq"); raw != "" {
 		n, err := strconv.ParseInt(raw, 10, 64)
 		if err != nil || n < 0 {
 			WriteError(w, r, apperr.Invalid("invalid before_seq"))
@@ -110,7 +112,7 @@ func (h *MessageHandler) List(w http.ResponseWriter, r *http.Request, conversati
 		before = n
 	}
 	limit := 50
-	if raw := r.URL.Query().Get("limit"); raw != "" {
+	if raw := q.Get("limit"); raw != "" {
 		n, err := strconv.Atoi(raw)
 		if err != nil || n <= 0 {
 			WriteError(w, r, apperr.Invalid("invalid limit"))
@@ -118,7 +120,76 @@ func (h *MessageHandler) List(w http.ResponseWriter, r *http.Request, conversati
 		}
 		limit = n
 	}
+
+	// Jump-to-position mode: around_seq loads the window around a seq, mutually
+	// exclusive with before_seq pagination.
+	if raw := q.Get("around_seq"); raw != "" {
+		n, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || n < 0 {
+			WriteError(w, r, apperr.Invalid("invalid around_seq"))
+			return
+		}
+		if q.Get("before_seq") != "" {
+			WriteError(w, r, apperr.Invalid("around_seq and before_seq are mutually exclusive"))
+			return
+		}
+		list, err := h.Msg.ListAround(r.Context(), conversationID, UserIDFromContext(r.Context()), n, limit)
+		if err != nil {
+			WriteError(w, r, err)
+			return
+		}
+		out := make([]messageDTO, 0, len(list))
+		for _, v := range list {
+			out = append(out, toMessageDTO(v))
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"messages": out})
+		return
+	}
+
 	list, err := h.Msg.List(r.Context(), conversationID, UserIDFromContext(r.Context()), before, limit)
+	if err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	out := make([]messageDTO, 0, len(list))
+	for _, v := range list {
+		out = append(out, toMessageDTO(v))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"messages": out})
+}
+
+// Search returns messages in a conversation matching q (case-insensitive).
+// Paginated newest-first; excludes recalled messages. Requires membership.
+func (h *MessageHandler) Search(w http.ResponseWriter, r *http.Request, conversationID string) {
+	if h.Msg == nil {
+		WriteError(w, r, apperr.Unavailable("messages not configured"))
+		return
+	}
+	q := r.URL.Query()
+	query := q.Get("q")
+	if strings.TrimSpace(query) == "" {
+		WriteError(w, r, apperr.Invalid("q is required"))
+		return
+	}
+	var before int64
+	if raw := q.Get("before_seq"); raw != "" {
+		n, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || n < 0 {
+			WriteError(w, r, apperr.Invalid("invalid before_seq"))
+			return
+		}
+		before = n
+	}
+	limit := 50
+	if raw := q.Get("limit"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n <= 0 {
+			WriteError(w, r, apperr.Invalid("invalid limit"))
+			return
+		}
+		limit = n
+	}
+	list, err := h.Msg.Search(r.Context(), conversationID, UserIDFromContext(r.Context()), query, before, limit)
 	if err != nil {
 		WriteError(w, r, err)
 		return

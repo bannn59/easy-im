@@ -72,6 +72,12 @@ func (m *memMessageStore) UpdateBody(_ context.Context, id, body string, _ time.
 func (m *memMessageStore) MarkRecalled(_ context.Context, id string, _ time.Time) (domain.Message, error) {
 	return domain.Message{}, nil
 }
+func (m *memMessageStore) Search(_ context.Context, _, _ string, _ int64, _ int) ([]domain.Message, error) {
+	return nil, nil
+}
+func (m *memMessageStore) ListAround(_ context.Context, _ string, _ int64, _ int) ([]domain.Message, error) {
+	return nil, nil
+}
 
 type memMembers map[string][]string
 

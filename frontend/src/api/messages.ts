@@ -21,13 +21,28 @@ export type Message = {
 
 export function listMessages(
   conversationId: string,
-  opts?: { before_seq?: number; limit?: number },
+  opts?: { before_seq?: number; around_seq?: number; limit?: number },
 ): Promise<{ messages: Message[] }> {
   const q = new URLSearchParams();
   if (opts?.before_seq) q.set('before_seq', String(opts.before_seq));
+  if (opts?.around_seq) q.set('around_seq', String(opts.around_seq));
   if (opts?.limit) q.set('limit', String(opts.limit));
   const qs = q.toString();
   return apiRequest(`/v1/conversations/${conversationId}/messages${qs ? `?${qs}` : ''}`, {
+    method: 'GET',
+  });
+}
+
+export function searchMessages(
+  conversationId: string,
+  query: string,
+  opts?: { before_seq?: number; limit?: number },
+): Promise<{ messages: Message[] }> {
+  const q = new URLSearchParams();
+  q.set('q', query);
+  if (opts?.before_seq) q.set('before_seq', String(opts.before_seq));
+  if (opts?.limit) q.set('limit', String(opts.limit));
+  return apiRequest(`/v1/conversations/${conversationId}/messages/search?${q.toString()}`, {
     method: 'GET',
   });
 }

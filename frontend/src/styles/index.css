@@ -1257,3 +1257,73 @@ code {
   gap: var(--space-2);
   padding: var(--space-2) 0;
 }
+
+/* —— Search panel (room) —— */
+.room__search {
+  flex-shrink: 0;
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.room__search-form {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.room__search-results {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 14rem;
+  overflow-y: auto;
+  border-top: 1px solid var(--line);
+}
+
+.room__search-results li + li {
+  border-top: 1px solid var(--line);
+}
+
+.room__search-result {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: var(--space-2) 0;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink);
+}
+
+.room__search-result:hover {
+  color: var(--ink-secondary);
+}
+
+.room__search-result-who {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--ink-tertiary);
+}
+
+.room__search-result-body {
+  display: block;
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room__search-empty {
+  margin-top: var(--space-3);
+  font-size: 0.875rem;
+}
+
+/* Highlight the search jump target message. */
+.bubble-item--highlight .bubble {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}

@@ -99,7 +99,12 @@
     "recalledPreview": "[已撤回]",
     "renameGroup": "重命名群聊",
     "renameGroupPlaceholder": "输入群名",
-    "renameBlank": "群名不能为空"
+    "renameBlank": "群名不能为空",
+    "search": "搜索",
+    "searchTitle": "搜索消息",
+    "searchPlaceholder": "搜索该会话的消息…",
+    "searchEmpty": "没有与「{{q}}」匹配的消息。",
+    "searchMore": "加载更多"
   },
   "friends": {
     "eyebrow": "通讯录",

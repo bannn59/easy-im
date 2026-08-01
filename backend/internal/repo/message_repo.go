@@ -231,6 +231,74 @@ func (r *MessageRepo) List(ctx context.Context, conversationID string, beforeSeq
 	return tmp, nil
 }
 
+// Search returns messages in a conversation whose body contains query
+// (case-insensitive), excluding recalled messages. Newest-first (seq DESC),
+// paginated with beforeSeq like List. limit is clamped to [1,100].
+func (r *MessageRepo) Search(ctx context.Context, conversationID, query string, beforeSeq int64, limit int) ([]domain.Message, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	var rows pgx.Rows
+	var err error
+	if beforeSeq > 0 {
+		rows, err = r.pool.Query(ctx, `
+			SELECT `+messageSelectCols+`
+			FROM messages
+			WHERE conversation_id = $1 AND recalled_at IS NULL AND body ILIKE '%'||$2||'%' AND seq < $3
+			ORDER BY seq DESC
+			LIMIT $4
+		`, conversationID, query, beforeSeq, limit)
+	} else {
+		rows, err = r.pool.Query(ctx, `
+			SELECT `+messageSelectCols+`
+			FROM messages
+			WHERE conversation_id = $1 AND recalled_at IS NULL AND body ILIKE '%'||$2||'%'
+			ORDER BY seq DESC
+			LIMIT $3
+		`, conversationID, query, limit)
+	}
+	if err != nil {
+		return nil, apperr.Internal("search messages failed", err)
+	}
+	defer rows.Close()
+	return collectMessages(rows)
+}
+
+// ListAround returns the window of messages around aroundSeq (±window), seq
+// ascending. Unlike Search/List it includes recalled messages: the window is
+// used to position a jump target, which needs the full seq sequence.
+func (r *MessageRepo) ListAround(ctx context.Context, conversationID string, aroundSeq int64, window int) ([]domain.Message, error) {
+	if window <= 0 || window > 100 {
+		window = 50
+	}
+	rows, err := r.pool.Query(ctx, `
+		SELECT `+messageSelectCols+`
+		FROM messages
+		WHERE conversation_id = $1 AND seq BETWEEN $2::bigint - $3::bigint AND $2::bigint + $3::bigint
+		ORDER BY seq ASC
+	`, conversationID, aroundSeq, window)
+	if err != nil {
+		return nil, apperr.Internal("list around message failed", err)
+	}
+	defer rows.Close()
+	return collectMessages(rows)
+}
+
+func collectMessages(rows pgx.Rows) ([]domain.Message, error) {
+	var out []domain.Message
+	for rows.Next() {
+		m, err := scanMessage(rows)
+		if err != nil {
+			return nil, apperr.Internal("scan message failed", err)
+		}
+		out = append(out, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UpdateBody edits a message body and its edited_at. Also refreshes the
 // conversation list preview when the edited message is the conversation head.
 func (r *MessageRepo) UpdateBody(ctx context.Context, id, body string, editedAt time.Time) (domain.Message, error) {
