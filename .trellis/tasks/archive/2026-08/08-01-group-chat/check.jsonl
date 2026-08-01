@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "backend spec 索引，检查需遵循"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "质量约定，检查建群代码质量"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "frontend spec 索引，检查前端群聊 UI 需遵循"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "前端质量约定，检查创建群/成员面板代码"}
