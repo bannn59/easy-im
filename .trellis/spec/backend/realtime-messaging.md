@@ -186,6 +186,19 @@ messages.reply_to_message_id UUID NULL
 
 `GET /v1/conversations/{conversation_id}/messages?before_seq=&limit=`
 
+**HTTP search (in-conversation)**
+
+`GET /v1/conversations/{conversation_id}/messages/search?q=&before_seq=&limit=`
+
+- `q` required (trimmed non-empty → 400). Case-insensitive `ILIKE '%q%'` on `body`,
+  **excludes recalled messages** (`recalled_at IS NULL`). Newest-first, paginated like list.
+- **Jump-to-position**: `GET .../messages?around_seq=X&limit=N` loads the window
+  `[X-N, X+N]` seq ascending **including recalled** messages (positioning needs the
+  full seq sequence — deliberately different from search, which excludes them).
+  `around_seq` is mutually exclusive with `before_seq` (400 if both present).
+- No full-text index on `body` today; revisit (pg_trgm GIN) if data volume grows.
+- Search belongs on HTTP (see "What belongs on WS vs HTTP").
+
 **Domain**
 
 ```go
