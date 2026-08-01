@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "backend spec 索引，埋点需遵循既有后端约定"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "日志字段命名约定；metrics 标签需与之一致，且本任务要更新它补 metrics 段"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "代码质量约定，metrics 包需符合"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "目录结构约定，新 internal/metrics 包需符合"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "错误处理约定，metrics server 错误路径需符合"}
