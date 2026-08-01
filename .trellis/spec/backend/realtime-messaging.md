@@ -199,6 +199,22 @@ messages.reply_to_message_id UUID NULL
 - No full-text index on `body` today; revisit (pg_trgm GIN) if data volume grows.
 - Search belongs on HTTP (see "What belongs on WS vs HTTP").
 
+**HTTP global search (across all conversations)**
+
+`GET /v1/search/messages?q=&cursor=&limit=`
+
+- `q` required (trimmed non-empty → 400). Case-insensitive `ILIKE '%q%'` on `body`,
+  **excludes recalled messages**, newest-first.
+- **ACL**: SQL `INNER JOIN conversation_members cm ON cm.conversation_id = m.conversation_id
+  AND cm.user_id = $user` limits results to conversations the user belongs to.
+  Leaving a conversation makes its history unsearchable.
+- **Pagination**: `(created_at, id)` composite cursor (conversation `seq` is only unique
+  within a conversation, so global search cannot use it). Response carries `next_cursor`
+  (`created_at|id`); empty when the page is not full.
+- Each result includes `conversation_id` + `conversation_title` (null for DM — the client
+  infers the label from members), so the UI can show origin and navigate.
+- Search belongs on HTTP (see "What belongs on WS vs HTTP").
+
 **Domain**
 
 ```go
