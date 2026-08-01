@@ -16,7 +16,7 @@
 | UI library | React 18+ with TypeScript |
 | Bundler / app shell | Vite under `frontend/` |
 | Server state | Room-local list today; TanStack Query intended later |
-| Realtime | **Single app-wide WS** via `RealtimeProvider` / `useRealtime` (events: `message.created`, `message.read`, `typing.started`/`stopped`, `presence.changed`) |
+| Realtime | **Single app-wide WS** via `RealtimeProvider` / `useRealtime` (events: `message.created`/`edited`/`recalled`, `message.read`, `typing.started`/`stopped`, `presence.changed`, `members.changed`, `conversation.renamed`) |
 | Client state | React state + Session context |
 | Styling | Global CSS `src/styles/index.css` (minimal tokens; **no WeChat green**) |
 | UI i18n | `i18next` + `react-i18next`; locales `en` / `zh-CN` |

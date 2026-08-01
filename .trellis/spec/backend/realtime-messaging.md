@@ -116,7 +116,13 @@ HTTP Upgrade /v1/ws (cookie-auth) → hub register(userID) → push frames → c
 { "type": "typing.started", "payload": { "conversation_id", "user_id" } }
 { "type": "typing.stopped", "payload": { "conversation_id", "user_id" } }
 { "type": "presence.changed", "payload": { "user_id", "online" } }
+{ "type": "members.changed", "payload": { "conversation_id", "action", "user_id", "members" } }
+{ "type": "conversation.renamed", "payload": { "conversation_id", "title", "updated_at" } }
 ```
+
+- `members.changed` (`action`: `added` | `left` | `kicked` | `owner_transferred`): broadcast to all members after a membership/owner change (`ConversationService` member ops).
+- `conversation.renamed`: broadcast to all members after a group rename (`PATCH /v1/conversations/{id}`, owner only). Includes the new `title` so clients patch their copy without re-fetching.
+- These group/rename events are currently **local-node only** (in-process hub fanout, like `members.changed`); they do not ride the Kafka `im.messages` bus. Cross-node delivery for them is a known gap.
 
 **Client → Server:**
 
