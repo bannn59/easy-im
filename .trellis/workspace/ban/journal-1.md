@@ -691,3 +691,41 @@ Added development-stage Prometheus observability and measured the concurrency ba
 - Cross-machine load test (independent DB/Kafka) to verify real horizontal scaling.
 - Write-path load test at standard concurrency.
 - Reconsider bcrypt cost or Argon2 if login RPS matters.
+
+## Session: group chat MVP
+
+**Date**: 2026-08-01
+**Task**: 08-01-group-chat
+**Branch**: `main`
+
+### Summary
+
+Added group chat minimal loop: create-group API, member panel, realtime broadcast. Reused existing conversations/members tables and the message chain.
+
+### Main Changes
+
+- Backend: `ConversationService.CreateGroup` (friend validation per member, dedupe/self-removal, max 50 members); `POST /v1/conversations/groups` handler + route; 6 service + 3 handler tests.
+- Frontend: `CreateGroupDialog` (multi-select friends + name, refresh callback), member panel in group rooms (online via presence overrides), i18n en/zh-CN.
+
+### Key Findings
+
+- `conversations`/`conversation_members` tables already supported multi-member groups; only service + UI layer were missing.
+- Frontend already had group UI logic (`isGroup`, group title) pre-wired — the gap was purely the create-group slice.
+- Reused message chain (member-driven broadcast + Kafka fanout) and ACL with zero changes.
+- Verified: group message realtime (WS), ACL (non-member 404), multi-member list.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| (see git log) | feat(group-chat): create groups, member panel, realtime broadcast |
+| (see git log) | chore(task): archive 08-01-group-chat |
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- Group member management (add/remove/leave, owner transfer) — next task.
+- Group avatar / name editing.
