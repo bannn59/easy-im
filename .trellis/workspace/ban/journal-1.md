@@ -729,3 +729,46 @@ Added group chat minimal loop: create-group API, member panel, realtime broadcas
 
 - Group member management (add/remove/leave, owner transfer) — next task.
 - Group avatar / name editing.
+
+## Session: group member management
+
+**Date**: 2026-08-01
+**Task**: 08-01-group-members
+**Branch**: `main`
+
+### Summary
+
+Added full group member lifecycle: add/leave/kick/transfer with realtime members.changed broadcast.
+
+### Main Changes
+
+- repo: AddMembers/RemoveMember/SetOwner.
+- service: AddMembers (friend check + 409 already-in-group + size cap 50), LeaveGroup (owner must transfer, last member forbidden), KickMember (owner only), TransferOwner.
+- handler/routes: 4 routes; DELETE /members/me vs /members/{userID} via ServeMux exact-segment priority; CORS adds DELETE.
+- WS: members.changed event to all members; frontend onMembersChanged re-fetches conversation.
+- frontend: AddMembersDialog, member panel owner actions, leave group.
+- tests: 12 service + 7 handler.
+
+### Key Findings
+
+- Existing conversation_members table + created_by covers everything; no migration needed.
+- Go 1.22 ServeMux exact-segment ("me") beats wildcard ("{userID}") — verified with a route-priority test.
+- CORS preflight would silently block DELETE from the browser without Allow-Methods including DELETE.
+- useRealtime proxy must forward new handlers or the realtime feature is dead code.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| (see git log) | feat(group-members): add/leave/kick/transfer with realtime broadcast |
+| (see git log) | chore(task): archive 08-01-group-members |
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- Group avatar / name editing.
+- 2-person group detection (isGroup = members>2 heuristic hides member mgmt for 2-person groups).
+- Cross-node members.changed (local broadcast only today).
