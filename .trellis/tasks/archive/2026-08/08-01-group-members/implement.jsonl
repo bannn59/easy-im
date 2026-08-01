@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "backend spec 索引，成员管理 API 需遵循后端约定"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "ACL 约定：成员管理是 ACL 敏感操作"}
+{"file": ".trellis/spec/backend/realtime-messaging.md", "reason": "实时事件约定，members.changed 事件需理解"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "DB 约定，成员增删与群主更新需遵循"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "frontend spec 索引，成员面板 UI 需遵循"}
