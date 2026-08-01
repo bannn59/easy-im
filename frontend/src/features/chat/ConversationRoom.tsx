@@ -42,6 +42,7 @@ export function ConversationRoom() {
   const [peerReadSeq, setPeerReadSeq] = useState<Map<string, number>>(new Map());
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [presenceOverrides, setPresenceOverrides] = useState<Record<string, boolean>>({});
+  const [showMembers, setShowMembers] = useState(false);
   const typingTimers = useRef<Map<string, number>>(new Map());
   const lastTypingSent = useRef(0);
   const listRef = useRef<HTMLUListElement>(null!);
@@ -408,7 +409,36 @@ export function ConversationRoom() {
             </p>
           )}
         </div>
+        {isGroup && (
+          <button type="button" className="btn btn--ghost" onClick={() => setShowMembers((v) => !v)}>
+            {t('chat.members')}
+          </button>
+        )}
       </header>
+
+      {showMembers && isGroup && (
+        <aside className="room__members" aria-label={t('chat.members')}>
+          <h2 className="room__members-title">{t('chat.members')}</h2>
+          <ul className="room__member-list">
+            {members.map((m) => {
+              const online = presenceOverrides[m.id] ?? m.online;
+              return (
+                <li key={m.id} className="room__member-row">
+                  <span
+                    className="presence-dot presence-dot--inline"
+                    data-online={online ? 'true' : 'false'}
+                    aria-hidden
+                  />
+                  {displayName(m.email, m.display_name)}
+                  {m.id === conv.created_by && (
+                    <span className="room__member-owner"> · {t('chat.owner')}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </aside>
+      )}
 
       <MessageList
         messages={messagesWithRead}

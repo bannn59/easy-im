@@ -54,6 +54,7 @@ func NewMux(deps Deps) http.Handler {
 	push := &PushHandler{Push: deps.Push, VAPIDPublicKey: deps.VAPIDPublicKey}
 
 	mux.Handle("GET /v1/conversations", require(http.HandlerFunc(conv.List)))
+	mux.Handle("POST /v1/conversations/groups", require(http.HandlerFunc(conv.CreateGroup)))
 	mux.Handle("GET /v1/conversations/{id}", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		r2 := r.Clone(r.Context())

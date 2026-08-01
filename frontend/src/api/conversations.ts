@@ -39,3 +39,13 @@ export function markConversationRead(
     body,
   });
 }
+
+export function createGroup(
+  title: string,
+  memberIds: string[],
+): Promise<Conversation> {
+  return apiRequest('/v1/conversations/groups', {
+    method: 'POST',
+    body: { title, member_ids: memberIds },
+  });
+}

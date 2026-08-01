@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -109,6 +110,72 @@ func (s *ConversationService) OpenDirect(ctx context.Context, selfUserID, peerUs
 		UpdatedAt: now,
 	}
 	if err := s.convs.Create(ctx, c, []string{selfUserID, peerUserID}); err != nil {
+		return domain.Conversation{}, err
+	}
+	return s.convs.GetIfMember(ctx, c.ID, selfUserID)
+}
+
+// maxGroupSize caps group membership to bound fanout and abuse.
+const maxGroupSize = 50
+
+// CreateGroup creates a group conversation with the given member ids (plus the
+// creator). Every member must be an accepted friend of the creator. The
+// creator is not required to be friends with themselves.
+func (s *ConversationService) CreateGroup(ctx context.Context, selfUserID string, title *string, memberIDs []string) (domain.Conversation, error) {
+	if selfUserID == "" {
+		return domain.Conversation{}, apperr.Unauthorized("missing credentials")
+	}
+	if s.convs == nil || s.users == nil || s.friends == nil {
+		return domain.Conversation{}, apperr.Unavailable("database not configured")
+	}
+
+	// Dedupe and drop the creator from member_ids (they are added implicitly).
+	seen := map[string]struct{}{selfUserID: {}}
+	var members []string
+	for _, id := range memberIDs {
+		id = strings.TrimSpace(id)
+		if id == "" || id == selfUserID {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		members = append(members, id)
+	}
+	if len(members) < 1 {
+		return domain.Conversation{}, apperr.Invalid("group requires at least one other member")
+	}
+	if len(members)+1 > maxGroupSize {
+		return domain.Conversation{}, apperr.Invalid("group too large")
+	}
+
+	for _, id := range members {
+		if _, err := s.users.FindByID(ctx, id); err != nil {
+			if errors.Is(err, apperr.ErrNotFound) {
+				return domain.Conversation{}, apperr.NotFound("member user not found")
+			}
+			return domain.Conversation{}, err
+		}
+		ok, err := s.friends.AreFriends(ctx, selfUserID, id)
+		if err != nil {
+			return domain.Conversation{}, err
+		}
+		if !ok {
+			return domain.Conversation{}, apperr.Forbidden("not friends with " + id)
+		}
+	}
+
+	now := s.now().UTC()
+	allMembers := append([]string{selfUserID}, members...)
+	c := domain.Conversation{
+		ID:        uuid.NewString(),
+		Title:     title,
+		CreatedBy: selfUserID,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := s.convs.Create(ctx, c, allMembers); err != nil {
 		return domain.Conversation{}, err
 	}
 	return s.convs.GetIfMember(ctx, c.ID, selfUserID)

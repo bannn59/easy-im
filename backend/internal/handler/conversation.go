@@ -117,6 +117,36 @@ func (h *ConversationHandler) Get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, toConversationDTO(c, h.Hub))
 }
 
+// createGroupBody is the request body for POST /v1/conversations/groups.
+type createGroupBody struct {
+	Title     *string  `json:"title"`
+	MemberIDs []string `json:"member_ids"`
+}
+
+// CreateGroup creates a group conversation with the authenticated user and the
+// given members (must be friends of the creator).
+func (h *ConversationHandler) CreateGroup(w http.ResponseWriter, r *http.Request) {
+	if h.Conv == nil {
+		WriteError(w, r, apperr.Unavailable("conversations not configured"))
+		return
+	}
+	var body createGroupBody
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); err != nil {
+		WriteError(w, r, apperr.Invalid("invalid JSON body"))
+		return
+	}
+	if len(body.MemberIDs) == 0 {
+		WriteError(w, r, apperr.Invalid("member_ids is required"))
+		return
+	}
+	c, err := h.Conv.CreateGroup(r.Context(), UserIDFromContext(r.Context()), body.Title, body.MemberIDs)
+	if err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, toConversationDTO(c, h.Hub))
+}
+
 type markReadBody struct {
 	Seq *int64 `json:"seq"`
 }

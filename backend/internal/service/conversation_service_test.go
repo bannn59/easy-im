@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -427,5 +428,108 @@ func TestConversationMarkReadPublishesEvent(t *testing.T) {
 	r := pub.reads[0]
 	if r[0] != c.ID || r[1] != "ub" || r[2] != "5" {
 		t.Fatalf("read event mismatch: %v", r)
+	}
+}
+
+func TestCreateGroup(t *testing.T) {
+	conv := newMemConv()
+	users := &memConvUsers{byID: map[string]domain.User{
+		"u1": {ID: "u1"}, "u2": {ID: "u2"}, "u3": {ID: "u3"},
+	}}
+	friends := newMemFriends([2]string{"u1", "u2"}, [2]string{"u1", "u3"})
+	svc := NewConversationService(conv, users, friends, nil)
+
+	title := "Weekend Trip"
+	c, err := svc.CreateGroup(context.Background(), "u1", &title, []string{"u2", "u3"})
+	if err != nil {
+		t.Fatalf("CreateGroup: %v", err)
+	}
+	if c.Title == nil || *c.Title != title {
+		t.Fatalf("title = %v, want %q", c.Title, title)
+	}
+	if c.CreatedBy != "u1" {
+		t.Fatalf("created_by = %q, want u1", c.CreatedBy)
+	}
+	if c.MemberCount != 3 {
+		t.Fatalf("member_count = %d, want 3", c.MemberCount)
+	}
+}
+
+func TestCreateGroupNotFriend(t *testing.T) {
+	conv := newMemConv()
+	users := &memConvUsers{byID: map[string]domain.User{"u1": {ID: "u1"}, "u2": {ID: "u2"}}}
+	friends := newMemFriends() // u1 <-> u2 not friends
+	svc := NewConversationService(conv, users, friends, nil)
+
+	_, err := svc.CreateGroup(context.Background(), "u1", nil, []string{"u2"})
+	if !errors.Is(err, apperr.ErrForbidden) {
+		t.Fatalf("err = %v, want forbidden", err)
+	}
+}
+
+func TestCreateGroupNoMembers(t *testing.T) {
+	conv := newMemConv()
+	users := &memConvUsers{byID: map[string]domain.User{"u1": {ID: "u1"}}}
+	friends := newMemFriends()
+	svc := NewConversationService(conv, users, friends, nil)
+
+	_, err := svc.CreateGroup(context.Background(), "u1", nil, []string{"u1", ""})
+	if !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("err = %v, want invalid", err)
+	}
+}
+
+func TestCreateGroupDedupesSelf(t *testing.T) {
+	conv := newMemConv()
+	users := &memConvUsers{byID: map[string]domain.User{
+		"u1": {ID: "u1"}, "u2": {ID: "u2"},
+	}}
+	friends := newMemFriends([2]string{"u1", "u2"})
+	svc := NewConversationService(conv, users, friends, nil)
+
+	c, err := svc.CreateGroup(context.Background(), "u1", nil, []string{"u2", "u1", "u2"})
+	if err != nil {
+		t.Fatalf("CreateGroup: %v", err)
+	}
+	if c.MemberCount != 2 { // self + u2, deduped
+		t.Fatalf("member_count = %d, want 2", c.MemberCount)
+	}
+}
+
+func TestCreateGroupTooLarge(t *testing.T) {
+	conv := newMemConv()
+	users := &memConvUsers{byID: map[string]domain.User{}}
+	// 50 members (self + 49 peers) is allowed; 51 is not.
+	for i := 1; i <= 50; i++ {
+		id := fmt.Sprintf("u%02d", i)
+		users.byID[id] = domain.User{ID: id}
+	}
+	friends := newMemFriends()
+	var pairs [][2]string
+	for i := 1; i <= 50; i++ {
+		pairs = append(pairs, [2]string{"self", fmt.Sprintf("u%02d", i)})
+	}
+	friends = newMemFriends(pairs...)
+	svc := NewConversationService(conv, users, friends, nil)
+
+	var ids []string
+	for i := 1; i <= 50; i++ {
+		ids = append(ids, fmt.Sprintf("u%02d", i))
+	}
+	_, err := svc.CreateGroup(context.Background(), "self", nil, ids)
+	if !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("err = %v, want invalid (too large)", err)
+	}
+}
+
+func TestCreateGroupMemberNotFound(t *testing.T) {
+	conv := newMemConv()
+	users := &memConvUsers{byID: map[string]domain.User{"self": {ID: "self"}}}
+	friends := newMemFriends()
+	svc := NewConversationService(conv, users, friends, nil)
+
+	_, err := svc.CreateGroup(context.Background(), "self", nil, []string{"ghost"})
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("err = %v, want not found", err)
 	}
 }

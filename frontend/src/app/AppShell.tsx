@@ -5,6 +5,7 @@ import { listConversations, type Conversation } from '../api/conversations';
 import { ApiError } from '../api/http';
 import type { Message } from '../api/messages';
 import { displayName } from '../features/chat/types';
+import CreateGroupDialog from '../features/chat/CreateGroupDialog';
 import { useRealtime } from '../realtime';
 import { useSession } from './Session';
 
@@ -89,6 +90,7 @@ export function AppShell() {
   const [items, setItems] = useState<Conversation[]>([]);
   const [loadingList, setLoadingList] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!session.user) return;
@@ -245,6 +247,9 @@ export function AppShell() {
         </ul>
 
         <div className="workspace__side-actions">
+          <button type="button" className="btn btn--ghost" onClick={() => setShowCreateGroup(true)}>
+            {t('chat.create')}
+          </button>
           <Link to="/settings" className="btn btn--ghost">
             {t('nav.settings')}
           </Link>
@@ -256,6 +261,9 @@ export function AppShell() {
       <div className="workspace__main">
         <Outlet />
       </div>
+      {showCreateGroup && (
+        <CreateGroupDialog onClose={() => setShowCreateGroup(false)} onCreated={() => void refresh()} />
+      )}
     </div>
   );
 }
