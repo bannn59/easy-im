@@ -772,3 +772,25 @@ Added full group member lifecycle: add/leave/kick/transfer with realtime members
 - Group avatar / name editing.
 - 2-person group detection (isGroup = members>2 heuristic hides member mgmt for 2-person groups).
 - Cross-node members.changed (local broadcast only today).
+
+
+## Session 23: 群名称编辑
+
+**Date**: 2026-08-01
+**Task**: 群名称编辑
+**Branch**: `main`
+
+### Summary
+
+群主可重命名群聊：PATCH /v1/conversations/{id} + conversation.renamed 实时广播。后端 service/handler/repo 增量 + 7 单测；前端成员面板内联重命名表单、会话列表标题实时更新、i18n。端到端验证通过（HTTP 200/400/403 + WS 广播）。spec 同步 WS 事件契约。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e16416c` | (see git log) |
+| `ed3ad10` | (see git log) |
+
+### Status
+
+[OK] **Completed**
