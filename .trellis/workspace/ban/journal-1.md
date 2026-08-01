@@ -649,3 +649,45 @@ Multi-node realtime fanout so WS delivery scales horizontally. Per-node Kafka co
 ### Status
 
 [OK] **Completed**
+
+## Session: observability metrics + load test baseline
+
+**Date**: 2026-08-01
+**Task**: 08-01-obs-loadtest (parent) — obs-metrics + obs-loadtest-run
+**Branch**: `main`
+
+### Summary
+
+Added development-stage Prometheus observability and measured the concurrency baseline for single vs multi-node.
+
+### Main Changes
+
+- **obs-metrics**: prometheus/client_golang metrics endpoint (`METRICS_ADDR`, api :9090 / worker :9091). HTTP middleware (UUID path normalization, WS Hijacker-preserving recorder), hub WS gauges, message/fanout/Kafka/push counters. All nil-safe.
+- **obs-loadtest-run**: wrk + nginx LB + wsload scripts; report in `backend/research/report.md`.
+
+### Key Findings
+
+- Single node saturates (~6.7k RPS conversations, ~15k friends; `-c 1000` doesn't raise it) → server-bound, not client-bound.
+- Multi-node over shared Postgres does NOT scale (friends 14583→8396 at 3 nodes) → shared DB pool is the bottleneck; real horizontal scaling needs separate DB.
+- bcrypt login caps at ~380 RPS.
+- Default nginx `worker_connections=1024` limits WS to ~240 concurrent conns; raised to 8192 → 3-node LB sustains 1000+.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9a007ee` | feat(observability): Prometheus metrics with /metrics endpoint |
+| `7d1b691` | chore(task): archive 08-01-obs-metrics |
+| `8ca9e8e` | feat(loadtest): wrk concurrency benchmark and horizontal-scaling report |
+| `cb82851` | chore(task): archive 08-01-obs-loadtest-run |
+| `518d7bc` | chore(task): archive 08-01-obs-loadtest |
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- Cross-machine load test (independent DB/Kafka) to verify real horizontal scaling.
+- Write-path load test at standard concurrency.
+- Reconsider bcrypt cost or Argon2 if login RPS matters.
