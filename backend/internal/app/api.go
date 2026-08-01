@@ -72,7 +72,9 @@ func NewAPIHandler(opts APIOptions) http.Handler {
 				TokenTTL:  opts.AuthTokenTTL,
 			},
 		)
-		conv = service.NewConversationService(convs, users, friendRepo, rtHub).WithReadPublisher(msgAdapter)
+		conv = service.NewConversationService(convs, users, friendRepo, rtHub).
+			WithReadPublisher(msgAdapter).
+			WithGroupEventPublisher(msgAdapter)
 		msg = service.NewMessageService(messages, convs, rtHub).WithEventPublisher(msgAdapter)
 		friends = service.NewFriendService(friendRepo, users)
 		pushSvc = service.NewPushService(subs)

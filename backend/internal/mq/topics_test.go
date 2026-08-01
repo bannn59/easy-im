@@ -106,3 +106,37 @@ func TestReadEventRoundTrip(t *testing.T) {
 		t.Fatalf("read event mismatch: %+v", dec)
 	}
 }
+
+func TestMembersChangedEventRoundTrip(t *testing.T) {
+	ev := NewMembersChangedEvent("c1", "added", "u1", []string{"u1", "u2", "u3"}, "node1")
+	b, _ := json.Marshal(ev)
+	var dec MessageEvent
+	if err := json.Unmarshal(b, &dec); err != nil {
+		t.Fatal(err)
+	}
+	if dec.EventType() != GroupMembersChanged {
+		t.Fatalf("want group.members_changed, got %q", dec.EventType())
+	}
+	if dec.Action != "added" || dec.ActorID != "u1" || dec.ConversationID != "c1" || dec.Origin != "node1" {
+		t.Fatalf("members changed mismatch: %+v", dec)
+	}
+	if len(dec.MemberIDs) != 3 || dec.MemberIDs[0] != "u1" || dec.MemberIDs[2] != "u3" {
+		t.Fatalf("member ids mismatch: %v", dec.MemberIDs)
+	}
+}
+
+func TestConversationRenamedEventRoundTrip(t *testing.T) {
+	at := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC)
+	ev := NewConversationRenamedEvent("c1", "Weekend Trip", at, "node1")
+	b, _ := json.Marshal(ev)
+	var dec MessageEvent
+	if err := json.Unmarshal(b, &dec); err != nil {
+		t.Fatal(err)
+	}
+	if dec.EventType() != GroupConversationRenamed {
+		t.Fatalf("want group.conversation_renamed, got %q", dec.EventType())
+	}
+	if dec.Title != "Weekend Trip" || !dec.UpdatedAt.Equal(at) || dec.ConversationID != "c1" {
+		t.Fatalf("conversation renamed mismatch: %+v", dec)
+	}
+}

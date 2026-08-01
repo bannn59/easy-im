@@ -2,9 +2,11 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"easy-im/backend/internal/hub"
 	"easy-im/backend/internal/metrics"
@@ -107,6 +109,9 @@ func FanoutHandler(ctx context.Context, opts FanoutConsumerOpts, msg mq.Message)
 	}
 
 	var frame hub.Event
+	// deliveryIDs scopes the fan-out. members.changed carries its own member
+	// list (post-change); other events query current membership.
+	var deliveryIDs []string
 	switch ev.EventType() {
 	case mq.MessageCreated, mq.MessageEdited, mq.MessageRecalled:
 		if opts.Msg == nil {
@@ -128,6 +133,28 @@ func FanoutHandler(ctx context.Context, opts FanoutConsumerOpts, msg mq.Message)
 			return err
 		}
 		frame = f
+	case mq.GroupMembersChanged:
+		payload, err := json.Marshal(map[string]any{
+			"conversation_id": ev.ConversationID,
+			"action":          ev.Action,
+			"user_id":         ev.ActorID,
+			"members":         ev.MemberIDs,
+		})
+		if err != nil {
+			return err
+		}
+		frame = hub.Event{Type: "members.changed", Payload: payload}
+		deliveryIDs = ev.MemberIDs
+	case mq.GroupConversationRenamed:
+		payload, err := json.Marshal(map[string]any{
+			"conversation_id": ev.ConversationID,
+			"title":           ev.Title,
+			"updated_at":      ev.UpdatedAt.UTC().Format(time.RFC3339),
+		})
+		if err != nil {
+			return err
+		}
+		frame = hub.Event{Type: "conversation.renamed", Payload: payload}
 	default:
 		metrics.FanoutSkippedTotal.WithLabelValues("unknown_type").Inc()
 		return nil
@@ -137,12 +164,18 @@ func FanoutHandler(ctx context.Context, opts FanoutConsumerOpts, msg mq.Message)
 		metrics.FanoutSkippedTotal.WithLabelValues("no_delivery").Inc()
 		return nil
 	}
-	memberIDs, err := opts.Members.ListMemberIDs(ctx, ev.ConversationID)
-	if err != nil || len(memberIDs) == 0 {
-		return err
+	if len(deliveryIDs) == 0 {
+		ids, err := opts.Members.ListMemberIDs(ctx, ev.ConversationID)
+		if err != nil {
+			return err
+		}
+		if len(ids) == 0 {
+			return nil
+		}
+		deliveryIDs = ids
 	}
 	metrics.FanoutEventsTotal.WithLabelValues(eventType).Inc()
-	opts.Hub.PublishToUsers(memberIDs, frame)
+	opts.Hub.PublishToUsers(deliveryIDs, frame)
 	return nil
 }
 

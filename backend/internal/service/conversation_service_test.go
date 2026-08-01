@@ -592,6 +592,58 @@ func membersTestHarness() (*ConversationService, *memConv, string) {
 	return svc, conv, gid
 }
 
+// memGroupPub records group-event publications for assertion.
+type memGroupPub struct {
+	renamed    []struct{ convID, title string }
+	membersChg []struct{ convID, action, actorID string; members []string }
+}
+
+func (m *memGroupPub) PublishMembersChanged(_ context.Context, conversationID, action, actorID string, members []string) error {
+	m.membersChg = append(m.membersChg, struct {
+		convID, action, actorID string
+		members                 []string
+	}{conversationID, action, actorID, members})
+	return nil
+}
+
+func (m *memGroupPub) PublishConversationRenamed(_ context.Context, conversationID, title string, _ time.Time) error {
+	m.renamed = append(m.renamed, struct{ convID, title string }{conversationID, title})
+	return nil
+}
+
+func TestRenameGroupPublishesEvent(t *testing.T) {
+	svc, _, gid := membersTestHarness()
+	pub := &memGroupPub{}
+	svc = svc.WithGroupEventPublisher(pub)
+
+	title := "新群名"
+	if _, err := svc.RenameGroup(context.Background(), gid, "self", &title); err != nil {
+		t.Fatalf("RenameGroup: %v", err)
+	}
+	if len(pub.renamed) != 1 {
+		t.Fatalf("want 1 rename publish, got %d", len(pub.renamed))
+	}
+	if pub.renamed[0].convID != gid || pub.renamed[0].title != title {
+		t.Fatalf("rename publish mismatch: %+v", pub.renamed[0])
+	}
+}
+
+func TestMembersChangedPublishesEvent(t *testing.T) {
+	svc, _, gid := membersTestHarness()
+	pub := &memGroupPub{}
+	svc = svc.WithGroupEventPublisher(pub)
+
+	if err := svc.AddMembers(context.Background(), gid, "self", []string{"peer2"}); err != nil {
+		t.Fatalf("AddMembers: %v", err)
+	}
+	if len(pub.membersChg) != 1 {
+		t.Fatalf("want 1 members change publish, got %d", len(pub.membersChg))
+	}
+	if pub.membersChg[0].action != "added" || pub.membersChg[0].actorID != "self" {
+		t.Fatalf("members change mismatch: %+v", pub.membersChg[0])
+	}
+}
+
 func TestAddMembers(t *testing.T) {
 	svc, conv, gid := membersTestHarness()
 	if err := svc.AddMembers(context.Background(), gid, "peer1", []string{"peer2"}); err != nil {

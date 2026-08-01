@@ -41,18 +41,26 @@ type FriendshipChecker interface {
 
 // ConversationService implements open-DM / list / get with membership ACL.
 type ConversationService struct {
-	convs   ConversationStore
-	users   ConversationUserLookup
-	friends FriendshipChecker
-	rt      RealtimePublisher // optional; nil-safe
-	readPub ReadEventPublisher
-	now     func() time.Time
+	convs    ConversationStore
+	users    ConversationUserLookup
+	friends  FriendshipChecker
+	rt       RealtimePublisher // optional; nil-safe
+	readPub  ReadEventPublisher
+	groupPub GroupEventPublisher
+	now      func() time.Time
 }
 
 // ReadEventPublisher publishes read-cursor events to the bus for cross-node
 // fanout. Optional; nil-safe.
 type ReadEventPublisher interface {
 	PublishMessageRead(ctx context.Context, conversationID, userID string, lastReadSeq int64) error
+}
+
+// GroupEventPublisher publishes group membership/rename events to the bus for
+// cross-node fanout. Optional; nil-safe.
+type GroupEventPublisher interface {
+	PublishMembersChanged(ctx context.Context, conversationID, action, actorID string, members []string) error
+	PublishConversationRenamed(ctx context.Context, conversationID, title string, updatedAt time.Time) error
 }
 
 func NewConversationService(convs ConversationStore, users ConversationUserLookup, friends FriendshipChecker, rt RealtimePublisher) *ConversationService {
@@ -63,6 +71,13 @@ func NewConversationService(convs ConversationStore, users ConversationUserLooku
 // event for cross-node delivery.
 func (s *ConversationService) WithReadPublisher(p ReadEventPublisher) *ConversationService {
 	s.readPub = p
+	return s
+}
+
+// WithGroupEventPublisher attaches a bus adapter; group ops then publish
+// membership/rename events for cross-node delivery.
+func (s *ConversationService) WithGroupEventPublisher(p GroupEventPublisher) *ConversationService {
+	s.groupPub = p
 	return s
 }
 
@@ -227,11 +242,9 @@ func (s *ConversationService) memberSet(ctx context.Context, conversationID stri
 }
 
 // broadcastMembersChanged pushes a members.changed WS event to all current
-// members (the caller passes the post-change member ids).
+// members (the caller passes the post-change member ids), then publishes the
+// event to the bus for cross-node fanout.
 func (s *ConversationService) broadcastMembersChanged(ctx context.Context, conversationID, action, userID string, members []string) {
-	if s.rt == nil {
-		return
-	}
 	payload, err := json.Marshal(map[string]any{
 		"conversation_id": conversationID,
 		"action":          action,
@@ -241,7 +254,14 @@ func (s *ConversationService) broadcastMembersChanged(ctx context.Context, conve
 	if err != nil {
 		return
 	}
-	s.rt.PublishToUsers(members, hub.Event{Type: "members.changed", Payload: payload})
+	if s.rt != nil {
+		s.rt.PublishToUsers(members, hub.Event{Type: "members.changed", Payload: payload})
+	}
+	if s.groupPub != nil {
+		if err := s.groupPub.PublishMembersChanged(ctx, conversationID, action, userID, members); err != nil {
+			slog.Warn("publish members.changed event failed", "conversation_id", conversationID, "error", err)
+		}
+	}
 }
 
 // RenameGroup updates a group's display title. Only the group owner may rename.
@@ -267,11 +287,9 @@ func (s *ConversationService) RenameGroup(ctx context.Context, conversationID, o
 	return updated, nil
 }
 
-// broadcastRenamed pushes a conversation.renamed WS event to all members.
+// broadcastRenamed pushes a conversation.renamed WS event to all members, then
+// publishes the event to the bus for cross-node fanout.
 func (s *ConversationService) broadcastRenamed(ctx context.Context, conversationID, title string, updatedAt time.Time, members []string) {
-	if s.rt == nil {
-		return
-	}
 	payload, err := json.Marshal(map[string]any{
 		"conversation_id": conversationID,
 		"title":           title,
@@ -280,7 +298,14 @@ func (s *ConversationService) broadcastRenamed(ctx context.Context, conversation
 	if err != nil {
 		return
 	}
-	s.rt.PublishToUsers(members, hub.Event{Type: "conversation.renamed", Payload: payload})
+	if s.rt != nil {
+		s.rt.PublishToUsers(members, hub.Event{Type: "conversation.renamed", Payload: payload})
+	}
+	if s.groupPub != nil {
+		if err := s.groupPub.PublishConversationRenamed(ctx, conversationID, title, updatedAt); err != nil {
+			slog.Warn("publish conversation.renamed event failed", "conversation_id", conversationID, "error", err)
+		}
+	}
 }
 
 // AddMembers adds friend users to a group. Any member may add their friends.

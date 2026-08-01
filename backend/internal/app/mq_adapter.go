@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"time"
 
 	"easy-im/backend/internal/domain"
 	"easy-im/backend/internal/mq"
@@ -44,4 +45,18 @@ func (a *messageEventAdapter) PublishMessageRead(ctx context.Context, conversati
 		return nil
 	}
 	return a.producer.Publish(ctx, mq.TopicMessages, conversationID, mq.NewReadEvent(conversationID, userID, lastReadSeq, a.nodeID))
+}
+
+func (a *messageEventAdapter) PublishMembersChanged(ctx context.Context, conversationID, action, actorID string, members []string) error {
+	if a == nil || a.producer == nil {
+		return nil
+	}
+	return a.producer.Publish(ctx, mq.TopicMessages, conversationID, mq.NewMembersChangedEvent(conversationID, action, actorID, members, a.nodeID))
+}
+
+func (a *messageEventAdapter) PublishConversationRenamed(ctx context.Context, conversationID, title string, updatedAt time.Time) error {
+	if a == nil || a.producer == nil {
+		return nil
+	}
+	return a.producer.Publish(ctx, mq.TopicMessages, conversationID, mq.NewConversationRenamedEvent(conversationID, title, updatedAt, a.nodeID))
 }

@@ -174,6 +174,92 @@ func TestFanoutReadDelivers(t *testing.T) {
 	}
 }
 
+func TestFanoutMembersChangedDelivers(t *testing.T) {
+	fh := &fakeHub{}
+	opts := FanoutConsumerOpts{
+		NodeID:  "node2",
+		Members: memMembers{"c1": {"u1", "u2"}},
+		Hub:     fh,
+	}
+	msg := mq.Message{
+		Topic: mq.TopicMessages,
+		Value: mustJSON(t, mq.NewMembersChangedEvent("c1", "added", "u1", []string{"u1", "u2", "u3"}, "node1")),
+	}
+	if err := FanoutHandler(context.Background(), opts, msg); err != nil {
+		t.Fatal(err)
+	}
+	if fh.len() != 1 {
+		t.Fatalf("want 1 push, got %d", fh.len())
+	}
+	p := fh.pushed[0]
+	if p.event.Type != "members.changed" {
+		t.Fatalf("want members.changed, got %q", p.event.Type)
+	}
+	// Delivery scope is the event's own member list (post-change), not the stale
+	// MembershipChecker snapshot.
+	if len(p.userIDs) != 3 || p.userIDs[0] != "u1" || p.userIDs[2] != "u3" {
+		t.Fatalf("delivery scope mismatch: %v", p.userIDs)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(p.event.Payload, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload["action"] != "added" || payload["user_id"] != "u1" {
+		t.Fatalf("members payload mismatch: %+v", payload)
+	}
+}
+
+func TestFanoutConversationRenamedDelivers(t *testing.T) {
+	fh := &fakeHub{}
+	opts := FanoutConsumerOpts{
+		NodeID:  "node2",
+		Members: memMembers{"c1": {"u1", "u2"}},
+		Hub:     fh,
+	}
+	at := time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
+	msg := mq.Message{
+		Topic: mq.TopicMessages,
+		Value: mustJSON(t, mq.NewConversationRenamedEvent("c1", "Weekend Trip", at, "node1")),
+	}
+	if err := FanoutHandler(context.Background(), opts, msg); err != nil {
+		t.Fatal(err)
+	}
+	if fh.len() != 1 {
+		t.Fatalf("want 1 push, got %d", fh.len())
+	}
+	p := fh.pushed[0]
+	if p.event.Type != "conversation.renamed" {
+		t.Fatalf("want conversation.renamed, got %q", p.event.Type)
+	}
+	// Rename does not carry a member list; delivery scope comes from MembershipChecker.
+	if len(p.userIDs) != 2 {
+		t.Fatalf("delivery scope mismatch: %v", p.userIDs)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(p.event.Payload, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload["title"] != "Weekend Trip" {
+		t.Fatalf("title mismatch: %+v", payload)
+	}
+}
+
+func TestFanoutUnknownTypeSkipped(t *testing.T) {
+	fh := &fakeHub{}
+	opts := FanoutConsumerOpts{
+		NodeID:  "node2",
+		Members: memMembers{"c1": {"u1", "u2"}},
+		Hub:     fh,
+	}
+	msg := mq.Message{Topic: mq.TopicMessages, Value: []byte(`{"type":"bogus","conversation_id":"c1","origin":"node1"}`)}
+	if err := FanoutHandler(context.Background(), opts, msg); err != nil {
+		t.Fatal(err)
+	}
+	if fh.len() != 0 {
+		t.Fatalf("unknown type must be skipped, got %d pushes", fh.len())
+	}
+}
+
 func mustJSON(t *testing.T, v any) []byte {
 	t.Helper()
 	b, err := json.Marshal(v)

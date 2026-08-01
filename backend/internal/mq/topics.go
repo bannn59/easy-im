@@ -25,6 +25,10 @@ const (
 	MessageRecalled MessageEventType = "recalled"
 	// MessageRead is a member advancing the conversation read cursor.
 	MessageRead MessageEventType = "read"
+	// GroupMembersChanged is a group membership/owner change (added/left/kicked/owner_transferred).
+	GroupMembersChanged MessageEventType = "group.members_changed"
+	// GroupConversationRenamed is a group display-title change.
+	GroupConversationRenamed MessageEventType = "group.conversation_renamed"
 )
 
 // MessageEvent is published on TopicMessages after a message state change.
@@ -46,6 +50,14 @@ type MessageEvent struct {
 	// ReadEvent fields (Type == "read").
 	ReadByUserID string `json:"read_by_user_id,omitempty"`
 	LastReadSeq  int64  `json:"last_read_seq,omitempty"`
+
+	// Group-event fields (Type == "group.members_changed" or "group.conversation_renamed").
+	// Action is the membership action: added | left | kicked | owner_transferred.
+	Action    string    `json:"action,omitempty"`
+	ActorID   string    `json:"actor_id,omitempty"`
+	MemberIDs []string  `json:"member_ids,omitempty"`
+	Title     string    `json:"title,omitempty"`
+	UpdatedAt time.Time `json:"updated_at,omitempty"`
 }
 
 // NewMessageEvent builds a "created" MessageEvent from a stored message.
@@ -103,6 +115,33 @@ func NewReadEvent(conversationID, userID string, lastReadSeq int64, origin strin
 		ConversationID: conversationID,
 		ReadByUserID:   userID,
 		LastReadSeq:    lastReadSeq,
+	}
+}
+
+// NewMembersChangedEvent builds a "group.members_changed" MessageEvent carrying
+// the post-change member id list so the fanout consumer can scope delivery
+// without re-querying membership.
+func NewMembersChangedEvent(conversationID, action, actorID string, members []string, origin string) MessageEvent {
+	return MessageEvent{
+		Type:           string(GroupMembersChanged),
+		Origin:         origin,
+		ConversationID: conversationID,
+		Action:         action,
+		ActorID:        actorID,
+		MemberIDs:      members,
+	}
+}
+
+// NewConversationRenamedEvent builds a "group.conversation_renamed" MessageEvent.
+// The title travels with the event so the fanout consumer can rebuild the WS
+// frame without a DB read.
+func NewConversationRenamedEvent(conversationID, title string, updatedAt time.Time, origin string) MessageEvent {
+	return MessageEvent{
+		Type:           string(GroupConversationRenamed),
+		Origin:         origin,
+		ConversationID: conversationID,
+		Title:          title,
+		UpdatedAt:      updatedAt,
 	}
 }
 
