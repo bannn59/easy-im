@@ -136,6 +136,36 @@ func (m *memConv) FindDirectBetween(_ context.Context, userID1, userID2 string) 
 	return *best, nil
 }
 
+func (m *memConv) AddMembers(_ context.Context, conversationID string, userIDs []string) error {
+	set, ok := m.members[conversationID]
+	if !ok {
+		return apperr.NotFound("conversation not found")
+	}
+	for _, id := range userIDs {
+		set[id] = struct{}{}
+		m.lastRead[conversationID][id] = 0
+	}
+	return nil
+}
+
+func (m *memConv) RemoveMember(_ context.Context, conversationID, userID string) error {
+	if set, ok := m.members[conversationID]; ok {
+		delete(set, userID)
+		delete(m.lastRead[conversationID], userID)
+	}
+	return nil
+}
+
+func (m *memConv) SetOwner(_ context.Context, conversationID, newOwnerID string) error {
+	c, ok := m.items[conversationID]
+	if !ok {
+		return apperr.NotFound("conversation not found")
+	}
+	c.CreatedBy = newOwnerID
+	m.items[conversationID] = c
+	return nil
+}
+
 // betterDirect mirrors SQL: last_message_at DESC NULLS LAST, created_at DESC, id DESC.
 func betterDirect(a, b domain.Conversation) bool {
 	if a.LastMessageAt != nil && b.LastMessageAt == nil {
@@ -531,5 +561,130 @@ func TestCreateGroupMemberNotFound(t *testing.T) {
 	_, err := svc.CreateGroup(context.Background(), "self", nil, []string{"ghost"})
 	if !errors.Is(err, apperr.ErrNotFound) {
 		t.Fatalf("err = %v, want not found", err)
+	}
+}
+
+// membersTestHarness builds a service with self/peer1/peer2 and a group.
+func membersTestHarness() (*ConversationService, *memConv, string) {
+	conv := newMemConv()
+	users := &memConvUsers{byID: map[string]domain.User{
+		"self": {ID: "self"}, "peer1": {ID: "peer1"}, "peer2": {ID: "peer2"}, "ghost": {ID: "ghost"},
+	}}
+	// self is friends with peer1 and peer2; peer1 is friends with peer2.
+	friends := newMemFriends([2]string{"self", "peer1"}, [2]string{"self", "peer2"}, [2]string{"peer1", "peer2"})
+	svc := NewConversationService(conv, users, friends, nil)
+
+	gid := "group1"
+	c := domain.Conversation{ID: gid, Title: nil, CreatedBy: "self"}
+	if err := conv.Create(context.Background(), c, []string{"self", "peer1"}); err != nil {
+		panic(err)
+	}
+	return svc, conv, gid
+}
+
+func TestAddMembers(t *testing.T) {
+	svc, conv, gid := membersTestHarness()
+	if err := svc.AddMembers(context.Background(), gid, "peer1", []string{"peer2"}); err != nil {
+		t.Fatalf("AddMembers: %v", err)
+	}
+	// peer2 should now be a member.
+	if _, ok := conv.members[gid]["peer2"]; !ok {
+		t.Fatal("peer2 not added")
+	}
+}
+
+func TestAddMembersNotFriend(t *testing.T) {
+	svc, _, gid := membersTestHarness()
+	// self's friend is peer1; ghost is not self's friend.
+	err := svc.AddMembers(context.Background(), gid, "self", []string{"ghost"})
+	if !errors.Is(err, apperr.ErrForbidden) {
+		t.Fatalf("err = %v, want forbidden", err)
+	}
+}
+
+func TestAddMembersNonMemberRejected(t *testing.T) {
+	svc, _, gid := membersTestHarness()
+	// peer2 is not in the group, cannot add.
+	err := svc.AddMembers(context.Background(), gid, "peer2", []string{"ghost"})
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("err = %v, want not found (non-member)", err)
+	}
+}
+
+func TestLeaveGroup(t *testing.T) {
+	svc, conv, gid := membersTestHarness()
+	if err := svc.LeaveGroup(context.Background(), gid, "peer1"); err != nil {
+		t.Fatalf("LeaveGroup: %v", err)
+	}
+	if _, ok := conv.members[gid]["peer1"]; ok {
+		t.Fatal("peer1 still member")
+	}
+	if _, ok := conv.members[gid]["self"]; !ok {
+		t.Fatal("self should remain")
+	}
+}
+
+func TestLeaveGroupOwnerForbidden(t *testing.T) {
+	svc, _, gid := membersTestHarness()
+	err := svc.LeaveGroup(context.Background(), gid, "self")
+	if !errors.Is(err, apperr.ErrConflict) {
+		t.Fatalf("err = %v, want conflict (owner must transfer)", err)
+	}
+}
+
+func TestKickMember(t *testing.T) {
+	svc, conv, gid := membersTestHarness()
+	if err := svc.KickMember(context.Background(), gid, "self", "peer1"); err != nil {
+		t.Fatalf("KickMember: %v", err)
+	}
+	if _, ok := conv.members[gid]["peer1"]; ok {
+		t.Fatal("peer1 not kicked")
+	}
+}
+
+func TestKickMemberNonOwnerForbidden(t *testing.T) {
+	svc, _, gid := membersTestHarness()
+	err := svc.KickMember(context.Background(), gid, "peer1", "self")
+	if !errors.Is(err, apperr.ErrForbidden) {
+		t.Fatalf("err = %v, want forbidden (non-owner)", err)
+	}
+}
+
+func TestKickMemberSelfRejected(t *testing.T) {
+	svc, _, gid := membersTestHarness()
+	err := svc.KickMember(context.Background(), gid, "self", "self")
+	if !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("err = %v, want invalid (kick self)", err)
+	}
+}
+
+func TestTransferOwner(t *testing.T) {
+	svc, conv, gid := membersTestHarness()
+	if err := svc.TransferOwner(context.Background(), gid, "self", "peer1"); err != nil {
+		t.Fatalf("TransferOwner: %v", err)
+	}
+	if conv.items[gid].CreatedBy != "peer1" {
+		t.Fatalf("owner = %q, want peer1", conv.items[gid].CreatedBy)
+	}
+	// Old owner can now leave.
+	if err := svc.LeaveGroup(context.Background(), gid, "self"); err != nil {
+		t.Fatalf("old owner leave after transfer: %v", err)
+	}
+}
+
+func TestTransferOwnerNonMember(t *testing.T) {
+	svc, _, gid := membersTestHarness()
+	err := svc.TransferOwner(context.Background(), gid, "self", "ghost")
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("err = %v, want not found (ghost not member)", err)
+	}
+}
+
+func TestAddMembersAlreadyInGroup(t *testing.T) {
+	svc, _, gid := membersTestHarness()
+	// peer1 is already a member; adding it must conflict.
+	err := svc.AddMembers(context.Background(), gid, "self", []string{"peer1"})
+	if !errors.Is(err, apperr.ErrConflict) {
+		t.Fatalf("err = %v, want conflict (already in group)", err)
 	}
 }

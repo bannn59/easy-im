@@ -23,6 +23,9 @@ type ConversationStore interface {
 	MarkRead(ctx context.Context, conversationID, userID string, seq int64) (int64, error)
 	FindDirectBetween(ctx context.Context, userID1, userID2 string) (domain.Conversation, error)
 	ListMemberIDs(ctx context.Context, conversationID string) ([]string, error)
+	AddMembers(ctx context.Context, conversationID string, userIDs []string) error
+	RemoveMember(ctx context.Context, conversationID, userID string) error
+	SetOwner(ctx context.Context, conversationID, newOwnerID string) error
 }
 
 // ConversationUserLookup resolves users for open-DM.
@@ -179,6 +182,201 @@ func (s *ConversationService) CreateGroup(ctx context.Context, selfUserID string
 		return domain.Conversation{}, err
 	}
 	return s.convs.GetIfMember(ctx, c.ID, selfUserID)
+}
+
+// requireMember loads the conversation and asserts userID is a member.
+// Returns the conversation and the current member id set.
+func (s *ConversationService) requireMember(ctx context.Context, conversationID, userID string) (domain.Conversation, error) {
+	if conversationID == "" {
+		return domain.Conversation{}, apperr.Invalid("conversation id required")
+	}
+	if s.convs == nil {
+		return domain.Conversation{}, apperr.Unavailable("database not configured")
+	}
+	c, err := s.convs.GetIfMember(ctx, conversationID, userID)
+	if err != nil {
+		return domain.Conversation{}, err
+	}
+	return c, nil
+}
+
+// requireOwner asserts userID is the group owner (created_by).
+func (s *ConversationService) requireOwner(ctx context.Context, conversationID, userID string) (domain.Conversation, error) {
+	c, err := s.requireMember(ctx, conversationID, userID)
+	if err != nil {
+		return domain.Conversation{}, err
+	}
+	if c.CreatedBy != userID {
+		return domain.Conversation{}, apperr.Forbidden("not the group owner")
+	}
+	return c, nil
+}
+
+// memberSet returns the current member ids of a conversation as a set.
+func (s *ConversationService) memberSet(ctx context.Context, conversationID string) (map[string]struct{}, error) {
+	ids, err := s.convs.ListMemberIDs(ctx, conversationID)
+	if err != nil {
+		return nil, err
+	}
+	set := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		set[id] = struct{}{}
+	}
+	return set, nil
+}
+
+// broadcastMembersChanged pushes a members.changed WS event to all current
+// members (the caller passes the post-change member ids).
+func (s *ConversationService) broadcastMembersChanged(ctx context.Context, conversationID, action, userID string, members []string) {
+	if s.rt == nil {
+		return
+	}
+	payload, err := json.Marshal(map[string]any{
+		"conversation_id": conversationID,
+		"action":          action,
+		"user_id":         userID,
+		"members":         members,
+	})
+	if err != nil {
+		return
+	}
+	s.rt.PublishToUsers(members, hub.Event{Type: "members.changed", Payload: payload})
+}
+
+// AddMembers adds friend users to a group. Any member may add their friends.
+func (s *ConversationService) AddMembers(ctx context.Context, conversationID, operatorID string, userIDs []string) error {
+	if _, err := s.requireMember(ctx, conversationID, operatorID); err != nil {
+		return err
+	}
+	if s.users == nil || s.friends == nil {
+		return apperr.Unavailable("database not configured")
+	}
+	current, err := s.memberSet(ctx, conversationID)
+	if err != nil {
+		return err
+	}
+
+	var added []string
+	for _, id := range userIDs {
+		id = strings.TrimSpace(id)
+		if id == "" || id == operatorID {
+			continue
+		}
+		if _, already := current[id]; already {
+			return apperr.Conflict("user already in group")
+		}
+		if _, err := s.users.FindByID(ctx, id); err != nil {
+			if errors.Is(err, apperr.ErrNotFound) {
+				return apperr.NotFound("member user not found")
+			}
+			return err
+		}
+		ok, err := s.friends.AreFriends(ctx, operatorID, id)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return apperr.Forbidden("not friends with " + id)
+		}
+		added = append(added, id)
+	}
+	if len(added) == 0 {
+		return nil // all targets already members or invalid; not an error
+	}
+	if len(current)+len(added) > maxGroupSize {
+		return apperr.Invalid("group too large")
+	}
+	if err := s.convs.AddMembers(ctx, conversationID, added); err != nil {
+		return err
+	}
+	ids, err := s.convs.ListMemberIDs(ctx, conversationID)
+	if err != nil {
+		return err
+	}
+	s.broadcastMembersChanged(ctx, conversationID, "added", operatorID, ids)
+	return nil
+}
+
+// LeaveGroup removes the caller from a group. The owner must transfer first.
+func (s *ConversationService) LeaveGroup(ctx context.Context, conversationID, operatorID string) error {
+	c, err := s.requireMember(ctx, conversationID, operatorID)
+	if err != nil {
+		return err
+	}
+	if c.CreatedBy == operatorID {
+		return apperr.Conflict("owner must transfer ownership before leaving")
+	}
+	ids, err := s.convs.ListMemberIDs(ctx, conversationID)
+	if err != nil {
+		return err
+	}
+	if len(ids) <= 1 {
+		return apperr.Conflict("last member cannot leave")
+	}
+	if err := s.convs.RemoveMember(ctx, conversationID, operatorID); err != nil {
+		return err
+	}
+	remaining := make([]string, 0, len(ids)-1)
+	for _, id := range ids {
+		if id != operatorID {
+			remaining = append(remaining, id)
+		}
+	}
+	s.broadcastMembersChanged(ctx, conversationID, "left", operatorID, remaining)
+	return nil
+}
+
+// KickMember removes a member from a group. Only the owner may kick.
+func (s *ConversationService) KickMember(ctx context.Context, conversationID, operatorID, targetID string) error {
+	if _, err := s.requireOwner(ctx, conversationID, operatorID); err != nil {
+		return err
+	}
+	if targetID == operatorID {
+		return apperr.Invalid("cannot kick yourself")
+	}
+	current, err := s.memberSet(ctx, conversationID)
+	if err != nil {
+		return err
+	}
+	if _, ok := current[targetID]; !ok {
+		return apperr.NotFound("member not in conversation")
+	}
+	if err := s.convs.RemoveMember(ctx, conversationID, targetID); err != nil {
+		return err
+	}
+	ids, err := s.convs.ListMemberIDs(ctx, conversationID)
+	if err != nil {
+		return err
+	}
+	s.broadcastMembersChanged(ctx, conversationID, "kicked", targetID, ids)
+	return nil
+}
+
+// TransferOwner hands group ownership to another member. Only the owner may
+// transfer; the previous owner becomes a regular member.
+func (s *ConversationService) TransferOwner(ctx context.Context, conversationID, operatorID, newOwnerID string) error {
+	if _, err := s.requireOwner(ctx, conversationID, operatorID); err != nil {
+		return err
+	}
+	if newOwnerID == operatorID {
+		return apperr.Invalid("cannot transfer to yourself")
+	}
+	current, err := s.memberSet(ctx, conversationID)
+	if err != nil {
+		return err
+	}
+	if _, ok := current[newOwnerID]; !ok {
+		return apperr.NotFound("target not in conversation")
+	}
+	if err := s.convs.SetOwner(ctx, conversationID, newOwnerID); err != nil {
+		return err
+	}
+	ids, err := s.convs.ListMemberIDs(ctx, conversationID)
+	if err != nil {
+		return err
+	}
+	s.broadcastMembersChanged(ctx, conversationID, "owner_transferred", newOwnerID, ids)
+	return nil
 }
 
 func (s *ConversationService) List(ctx context.Context, userID string) ([]domain.Conversation, error) {

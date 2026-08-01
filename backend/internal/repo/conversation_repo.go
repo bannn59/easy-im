@@ -253,6 +253,51 @@ func (r *ConversationRepo) ListMemberIDs(ctx context.Context, conversationID str
 	return out, rows.Err()
 }
 
+// AddMembers inserts new members into a conversation. Duplicates (already a
+// member) are ignored via ON CONFLICT DO NOTHING.
+func (r *ConversationRepo) AddMembers(ctx context.Context, conversationID string, userIDs []string) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return apperr.Internal("begin tx failed", err)
+	}
+	defer tx.Rollback(ctx)
+	for _, uid := range userIDs {
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO conversation_members (conversation_id, user_id, joined_at)
+			VALUES ($1, $2, now())
+			ON CONFLICT (conversation_id, user_id) DO NOTHING
+		`, conversationID, uid); err != nil {
+			return apperr.Internal("insert member failed", err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return apperr.Internal("commit add members failed", err)
+	}
+	return nil
+}
+
+// RemoveMember deletes one member from a conversation. Idempotent: deleting a
+// non-member is a no-op success.
+func (r *ConversationRepo) RemoveMember(ctx context.Context, conversationID, userID string) error {
+	if _, err := r.pool.Exec(ctx, `
+		DELETE FROM conversation_members WHERE conversation_id = $1 AND user_id = $2
+	`, conversationID, userID); err != nil {
+		return apperr.Internal("remove member failed", err)
+	}
+	return nil
+}
+
+// SetOwner transfers group ownership (updates conversations.created_by).
+func (r *ConversationRepo) SetOwner(ctx context.Context, conversationID, newOwnerID string) error {
+	if _, err := r.pool.Exec(ctx, `
+		UPDATE conversations SET created_by = $2, updated_at = now()
+		WHERE id = $1
+	`, conversationID, newOwnerID); err != nil {
+		return apperr.Internal("set owner failed", err)
+	}
+	return nil
+}
+
 func (r *ConversationRepo) listMembers(ctx context.Context, conversationID string) ([]domain.User, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT u.id, u.email, u.display_name, u.created_at, u.updated_at

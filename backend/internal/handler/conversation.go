@@ -147,6 +147,86 @@ func (h *ConversationHandler) CreateGroup(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusCreated, toConversationDTO(c, h.Hub))
 }
 
+// addMembersBody is the request body for POST /v1/conversations/{id}/members.
+type addMembersBody struct {
+	UserIDs []string `json:"user_ids"`
+}
+
+// AddMembers adds friend users to a group.
+func (h *ConversationHandler) AddMembers(w http.ResponseWriter, r *http.Request, conversationID string) {
+	if h.Conv == nil {
+		WriteError(w, r, apperr.Unavailable("conversations not configured"))
+		return
+	}
+	var body addMembersBody
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); err != nil {
+		WriteError(w, r, apperr.Invalid("invalid JSON body"))
+		return
+	}
+	if len(body.UserIDs) == 0 {
+		WriteError(w, r, apperr.Invalid("user_ids is required"))
+		return
+	}
+	if err := h.Conv.AddMembers(r.Context(), conversationID, UserIDFromContext(r.Context()), body.UserIDs); err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// LeaveGroup removes the caller from a group.
+func (h *ConversationHandler) LeaveGroup(w http.ResponseWriter, r *http.Request, conversationID string) {
+	if h.Conv == nil {
+		WriteError(w, r, apperr.Unavailable("conversations not configured"))
+		return
+	}
+	if err := h.Conv.LeaveGroup(r.Context(), conversationID, UserIDFromContext(r.Context())); err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// KickMember removes a member from a group (owner only).
+func (h *ConversationHandler) KickMember(w http.ResponseWriter, r *http.Request, conversationID, targetID string) {
+	if h.Conv == nil {
+		WriteError(w, r, apperr.Unavailable("conversations not configured"))
+		return
+	}
+	if err := h.Conv.KickMember(r.Context(), conversationID, UserIDFromContext(r.Context()), targetID); err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// transferOwnerBody is the request body for POST /v1/conversations/{id}/owner.
+type transferOwnerBody struct {
+	UserID string `json:"user_id"`
+}
+
+// TransferOwner hands group ownership to another member.
+func (h *ConversationHandler) TransferOwner(w http.ResponseWriter, r *http.Request, conversationID string) {
+	if h.Conv == nil {
+		WriteError(w, r, apperr.Unavailable("conversations not configured"))
+		return
+	}
+	var body transferOwnerBody
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); err != nil {
+		WriteError(w, r, apperr.Invalid("invalid JSON body"))
+		return
+	}
+	if body.UserID == "" {
+		WriteError(w, r, apperr.Invalid("user_id is required"))
+		return
+	}
+	if err := h.Conv.TransferOwner(r.Context(), conversationID, UserIDFromContext(r.Context()), body.UserID); err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
 type markReadBody struct {
 	Seq *int64 `json:"seq"`
 }

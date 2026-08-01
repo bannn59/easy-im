@@ -56,7 +56,43 @@ func (m *memConvForHandler) FindDirectBetween(_ context.Context, userID1, userID
 }
 
 func (m *memConvForHandler) ListMemberIDs(_ context.Context, conversationID string) ([]string, error) {
-	return nil, nil
+	set, ok := m.members[conversationID]
+	if !ok {
+		return nil, nil
+	}
+	var out []string
+	for id := range set {
+		out = append(out, id)
+	}
+	return out, nil
+}
+
+func (m *memConvForHandler) AddMembers(_ context.Context, conversationID string, userIDs []string) error {
+	set, ok := m.members[conversationID]
+	if !ok {
+		return apperr.NotFound("conversation not found")
+	}
+	for _, id := range userIDs {
+		set[id] = struct{}{}
+	}
+	return nil
+}
+
+func (m *memConvForHandler) RemoveMember(_ context.Context, conversationID, userID string) error {
+	if set, ok := m.members[conversationID]; ok {
+		delete(set, userID)
+	}
+	return nil
+}
+
+func (m *memConvForHandler) SetOwner(_ context.Context, conversationID, newOwnerID string) error {
+	c, ok := m.items[conversationID]
+	if !ok {
+		return apperr.NotFound("conversation not found")
+	}
+	c.CreatedBy = newOwnerID
+	m.items[conversationID] = c
+	return nil
 }
 
 // memUsersForHandler resolves users by id.
@@ -154,5 +190,103 @@ func TestCreateGroupHandlerNotFriend(t *testing.T) {
 
 	if rr.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403", rr.Code)
+	}
+}
+
+func membersHandlerHarness() *ConversationHandler {
+	conv := &memConvForHandler{
+		items:   map[string]domain.Conversation{},
+		members: map[string]map[string]struct{}{},
+	}
+	// seed a group with self (owner) + peer1
+	conv.items["g1"] = domain.Conversation{ID: "g1", CreatedBy: "self"}
+	conv.members["g1"] = map[string]struct{}{"self": {}, "peer1": {}}
+	users := &memUsersForHandler{byID: map[string]domain.User{
+		"self": {ID: "self"}, "peer1": {ID: "peer1"}, "peer2": {ID: "peer2"},
+	}}
+	friends := &memFriendsForHandler{pairs: map[string]struct{}{"peer1|self": {}, "peer2|self": {}, "peer1|peer2": {}}}
+	svc := service.NewConversationService(conv, users, friends, nil)
+	return &ConversationHandler{Conv: svc}
+}
+
+func TestAddMembersHandler(t *testing.T) {
+	h := membersHandlerHarness()
+	req := groupReq(http.MethodPost, "/v1/conversations/g1/members", `{"user_ids":["peer2"]}`, "self")
+	rr := httptest.NewRecorder()
+	h.AddMembers(rr, req, "g1")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestAddMembersHandlerMissing(t *testing.T) {
+	h := membersHandlerHarness()
+	req := groupReq(http.MethodPost, "/v1/conversations/g1/members", `{}`, "self")
+	rr := httptest.NewRecorder()
+	h.AddMembers(rr, req, "g1")
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", rr.Code)
+	}
+}
+
+func TestKickMemberHandlerNonOwner(t *testing.T) {
+	h := membersHandlerHarness()
+	req := groupReq(http.MethodDelete, "/v1/conversations/g1/members/self", "", "peer1")
+	rr := httptest.NewRecorder()
+	h.KickMember(rr, req, "g1", "self")
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", rr.Code)
+	}
+}
+
+func TestLeaveGroupHandler(t *testing.T) {
+	h := membersHandlerHarness()
+	req := groupReq(http.MethodDelete, "/v1/conversations/g1/members/me", "", "peer1")
+	rr := httptest.NewRecorder()
+	h.LeaveGroup(rr, req, "g1")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+}
+
+func TestTransferOwnerHandlerNonOwner(t *testing.T) {
+	h := membersHandlerHarness()
+	req := groupReq(http.MethodPost, "/v1/conversations/g1/owner", `{"user_id":"peer1"}`, "peer1")
+	rr := httptest.NewRecorder()
+	h.TransferOwner(rr, req, "g1")
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", rr.Code)
+	}
+}
+
+func TestTransferOwnerHandler(t *testing.T) {
+	h := membersHandlerHarness()
+	req := groupReq(http.MethodPost, "/v1/conversations/g1/owner", `{"user_id":"peer1"}`, "self")
+	rr := httptest.NewRecorder()
+	h.TransferOwner(rr, req, "g1")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body %s", rr.Code, rr.Body.String())
+	}
+}
+
+// TestMemberRoutePriority verifies Go 1.22 ServeMux routes /members/me (exact)
+// to LeaveGroup and /members/{userID} (wildcard) to KickMember.
+func TestMemberRoutePriority(t *testing.T) {
+	mux := http.NewServeMux()
+	var hits []string
+	mux.HandleFunc("DELETE /v1/conversations/{id}/members/me", func(w http.ResponseWriter, r *http.Request) {
+		hits = append(hits, "me")
+	})
+	mux.HandleFunc("DELETE /v1/conversations/{id}/members/{userID}", func(w http.ResponseWriter, r *http.Request) {
+		hits = append(hits, "wildcard")
+	})
+
+	// exact path "me" -> me
+	mux.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodDelete, "/v1/conversations/g1/members/me", nil))
+	// UUID path -> wildcard
+	mux.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodDelete, "/v1/conversations/g1/members/8b80e04b-8356-4d36-88b1-4257b405d0d6", nil))
+
+	if len(hits) != 2 || hits[0] != "me" || hits[1] != "wildcard" {
+		t.Fatalf("route priority wrong: %v", hits)
 	}
 }

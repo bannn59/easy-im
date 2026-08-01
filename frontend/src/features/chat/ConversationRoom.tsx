@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { getConversation, markConversationRead, type Conversation } from '../../api/conversations';
+import { getConversation, markConversationRead, leaveGroup, kickGroupMember, transferGroupOwner, type Conversation } from '../../api/conversations';
 import { editMessage, listMessages, recallMessage, sendMessage, type Message } from '../../api/messages';
 import { ApiError } from '../../api/http';
 import { useRealtime, sendFrame } from '../../realtime';
 import { useSession } from '../../app/Session';
 import { Composer, type ComposerReply } from './Composer';
 import { MessageList } from './MessageList';
+import AddMembersDialog from './AddMembersDialog';
 import { displayName, mergeMessage, newClientMsgId, type ChatItem } from './types';
 
 const NEAR_BOTTOM_PX = 80;
@@ -30,6 +31,7 @@ function toChatItem(m: Message, status: ChatItem['status'] = 'sent'): ChatItem {
 
 export function ConversationRoom() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const session = useSession();
   const { t } = useTranslation();
   const [conv, setConv] = useState<Conversation | null>(null);
@@ -43,6 +45,8 @@ export function ConversationRoom() {
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [presenceOverrides, setPresenceOverrides] = useState<Record<string, boolean>>({});
   const [showMembers, setShowMembers] = useState(false);
+  const [memberNotice, setMemberNotice] = useState<string | null>(null);
+  const [showAddMembers, setShowAddMembers] = useState(false);
   const typingTimers = useRef<Map<string, number>>(new Map());
   const lastTypingSent = useRef(0);
   const listRef = useRef<HTMLUListElement>(null!);
@@ -186,6 +190,13 @@ export function ConversationRoom() {
     },
     onPresenceChanged: ({ user_id, online }) => {
       setPresenceOverrides((prev) => ({ ...prev, [user_id]: online }));
+    },
+    onMembersChanged: (data) => {
+      if (data.conversation_id !== id) return;
+      // Re-fetch the conversation to pick up the fresh member list.
+      if (session.user) {
+        void getConversation(id).then(setConv).catch(() => undefined);
+      }
     },
   });
 
@@ -388,6 +399,32 @@ export function ConversationRoom() {
         ? displayName(peer.email, peer.display_name)
         : t('common.untitled');
 
+  const isOwner = conv.created_by === session.user?.id;
+
+  const runMemberAction = useCallback(
+    async (action: 'leave' | 'kick' | 'transfer', targetId?: string) => {
+      if (!id) return;
+      setMemberNotice(null);
+      try {
+        if (action === 'leave') {
+          await leaveGroup(id);
+          navigate('/app');
+          return;
+        } else if (action === 'kick' && targetId) {
+          await kickGroupMember(id, targetId);
+        } else if (action === 'transfer' && targetId) {
+          await transferGroupOwner(id, targetId);
+        }
+        // Re-fetch so the panel reflects membership/owner changes.
+        const c = await getConversation(id);
+        setConv(c);
+      } catch (err) {
+        setMemberNotice(err instanceof ApiError ? err.message : String(err));
+      }
+    },
+    [id, navigate],
+  );
+
   return (
     <section className="room">
       <header className="room__header">
@@ -433,11 +470,43 @@ export function ConversationRoom() {
                   {m.id === conv.created_by && (
                     <span className="room__member-owner"> · {t('chat.owner')}</span>
                   )}
+                  {isOwner && m.id !== session.user?.id && (
+                    <span className="room__member-actions">
+                      <button type="button" className="btn btn--ghost btn--sm" onClick={() => runMemberAction('transfer', m.id)}>
+                        {t('chat.transferOwner')}
+                      </button>
+                      <button type="button" className="btn btn--ghost btn--sm" onClick={() => runMemberAction('kick', m.id)}>
+                        {t('chat.kick')}
+                      </button>
+                    </span>
+                  )}
                 </li>
               );
             })}
           </ul>
+          {memberNotice && (
+            <p className="err" role="alert">
+              {memberNotice}
+            </p>
+          )}
+          <div className="room__member-actions">
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setShowAddMembers(true)}>
+              {t('chat.addMembers')}
+            </button>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => runMemberAction('leave')}>
+              {t('chat.leaveGroup')}
+            </button>
+          </div>
         </aside>
+      )}
+
+      {showAddMembers && isGroup && conv && (
+        <AddMembersDialog
+          conversationId={conv.id}
+          currentMemberIds={members.map((m) => m.id)}
+          onClose={() => setShowAddMembers(false)}
+          onAdded={() => void getConversation(conv.id).then(setConv).catch(() => undefined)}
+        />
       )}
 
       <MessageList

@@ -77,6 +77,20 @@ func NewMux(deps Deps) http.Handler {
 		msg.Recall(w, r, r.PathValue("id"), r.PathValue("messageID"))
 	})))
 
+	// Group member management.
+	mux.Handle("POST /v1/conversations/{id}/members", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conv.AddMembers(w, r, r.PathValue("id"))
+	})))
+	mux.Handle("DELETE /v1/conversations/{id}/members/me", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conv.LeaveGroup(w, r, r.PathValue("id"))
+	})))
+	mux.Handle("DELETE /v1/conversations/{id}/members/{userID}", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conv.KickMember(w, r, r.PathValue("id"), r.PathValue("userID"))
+	})))
+	mux.Handle("POST /v1/conversations/{id}/owner", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conv.TransferOwner(w, r, r.PathValue("id"))
+	})))
+
 	mux.Handle("POST /v1/friends/requests", require(http.HandlerFunc(friends.SendRequest)))
 	mux.Handle("GET /v1/friends/requests/incoming", require(http.HandlerFunc(friends.ListIncoming)))
 	mux.Handle("POST /v1/friends/requests/{id}/accept", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -124,7 +138,7 @@ func withCORS(allowed map[string]struct{}) func(http.Handler) http.Handler {
 				if _, ok := allowed[origin]; ok {
 					w.Header().Set("Access-Control-Allow-Origin", origin)
 					w.Header().Set("Access-Control-Allow-Credentials", "true")
-					w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS")
+					w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 					w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Request-ID")
 					if r.Method == http.MethodOptions {
 						w.WriteHeader(http.StatusNoContent)

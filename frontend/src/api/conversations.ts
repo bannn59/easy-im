@@ -49,3 +49,38 @@ export function createGroup(
     body: { title, member_ids: memberIds },
   });
 }
+
+export function addGroupMembers(
+  conversationId: string,
+  userIds: string[],
+): Promise<{ ok: boolean }> {
+  return apiRequest(`/v1/conversations/${conversationId}/members`, {
+    method: 'POST',
+    body: { user_ids: userIds },
+  });
+}
+
+export function leaveGroup(conversationId: string): Promise<{ ok: boolean }> {
+  return apiRequest(`/v1/conversations/${conversationId}/members/me`, {
+    method: 'DELETE',
+  });
+}
+
+export function kickGroupMember(
+  conversationId: string,
+  userId: string,
+): Promise<{ ok: boolean }> {
+  return apiRequest(`/v1/conversations/${conversationId}/members/${userId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function transferGroupOwner(
+  conversationId: string,
+  userId: string,
+): Promise<{ ok: boolean }> {
+  return apiRequest(`/v1/conversations/${conversationId}/owner`, {
+    method: 'POST',
+    body: { user_id: userId },
+  });
+}
