@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { getConversation, markConversationRead, leaveGroup, kickGroupMember, transferGroupOwner, type Conversation } from '../../api/conversations';
+import { getConversation, markConversationRead, leaveGroup, kickGroupMember, transferGroupOwner, renameGroup, type Conversation } from '../../api/conversations';
 import { editMessage, listMessages, recallMessage, sendMessage, type Message } from '../../api/messages';
 import { ApiError } from '../../api/http';
 import { useRealtime, sendFrame } from '../../realtime';
@@ -47,6 +47,8 @@ export function ConversationRoom() {
   const [showMembers, setShowMembers] = useState(false);
   const [memberNotice, setMemberNotice] = useState<string | null>(null);
   const [showAddMembers, setShowAddMembers] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
   const typingTimers = useRef<Map<string, number>>(new Map());
   const lastTypingSent = useRef(0);
   const listRef = useRef<HTMLUListElement>(null!);
@@ -197,6 +199,10 @@ export function ConversationRoom() {
       if (session.user) {
         void getConversation(id).then(setConv).catch(() => undefined);
       }
+    },
+    onConversationRenamed: (data) => {
+      if (data.conversation_id !== id) return;
+      setConv((prev) => (prev ? { ...prev, title: data.title, updated_at: data.updated_at } : prev));
     },
   });
 
@@ -425,6 +431,33 @@ export function ConversationRoom() {
     [id, navigate],
   );
 
+  const startRename = useCallback(() => {
+    setRenameValue(conv?.title ?? '');
+    setMemberNotice(null);
+    setRenaming(true);
+  }, [conv]);
+
+  const submitRename = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault();
+      if (!id) return;
+      const title = renameValue.trim();
+      if (!title) {
+        setMemberNotice(t('chat.renameBlank'));
+        return;
+      }
+      setMemberNotice(null);
+      try {
+        const c = await renameGroup(id, title);
+        setConv(c);
+        setRenaming(false);
+      } catch (err) {
+        setMemberNotice(err instanceof ApiError ? err.message : String(err));
+      }
+    },
+    [id, renameValue, t],
+  );
+
   return (
     <section className="room">
       <header className="room__header">
@@ -489,7 +522,33 @@ export function ConversationRoom() {
               {memberNotice}
             </p>
           )}
+          {isOwner && renaming && (
+            <form className="room__rename" onSubmit={submitRename}>
+              <input
+                className="field__input"
+                type="text"
+                maxLength={64}
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                placeholder={t('chat.renameGroupPlaceholder')}
+                aria-label={t('chat.renameGroup')}
+              />
+              <span className="room__member-actions">
+                <button type="submit" className="btn btn--ghost btn--sm">
+                  {t('common.save')}
+                </button>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setRenaming(false)}>
+                  {t('common.cancel')}
+                </button>
+              </span>
+            </form>
+          )}
           <div className="room__member-actions">
+            {isOwner && !renaming && (
+              <button type="button" className="btn btn--ghost btn--sm" onClick={startRename}>
+                {t('chat.renameGroup')}
+              </button>
+            )}
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => setShowAddMembers(true)}>
               {t('chat.addMembers')}
             </button>

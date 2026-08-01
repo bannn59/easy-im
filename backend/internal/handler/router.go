@@ -90,6 +90,9 @@ func NewMux(deps Deps) http.Handler {
 	mux.Handle("POST /v1/conversations/{id}/owner", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conv.TransferOwner(w, r, r.PathValue("id"))
 	})))
+	mux.Handle("PATCH /v1/conversations/{id}", require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conv.RenameGroup(w, r, r.PathValue("id"))
+	})))
 
 	mux.Handle("POST /v1/friends/requests", require(http.HandlerFunc(friends.SendRequest)))
 	mux.Handle("GET /v1/friends/requests/incoming", require(http.HandlerFunc(friends.ListIncoming)))

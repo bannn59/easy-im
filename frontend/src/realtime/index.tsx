@@ -28,6 +28,12 @@ export type MembersChangedData = {
   members: string[];
 };
 
+export type ConversationRenamedData = {
+  conversation_id: string;
+  title: string;
+  updated_at: string;
+};
+
 export type RealtimeHandlers = {
   onMessageCreated?: (m: Message) => void;
   onMessageEdited?: (m: Message) => void;
@@ -37,6 +43,7 @@ export type RealtimeHandlers = {
   onTypingStopped?: (data: TypingData) => void;
   onPresenceChanged?: (data: PresenceData) => void;
   onMembersChanged?: (data: MembersChangedData) => void;
+  onConversationRenamed?: (data: ConversationRenamedData) => void;
   onStatus?: (s: RealtimeStatus) => void;
 };
 
@@ -90,6 +97,9 @@ function dispatch(frame: IncomingFrame) {
       break;
     case 'members.changed':
       notify((h) => h.onMembersChanged?.(frame.payload as MembersChangedData));
+      break;
+    case 'conversation.renamed':
+      notify((h) => h.onConversationRenamed?.(frame.payload as ConversationRenamedData));
       break;
   }
 }
@@ -175,6 +185,7 @@ export function useRealtime(handlers: RealtimeHandlers): void {
       onTypingStopped: (d) => ref.current.onTypingStopped?.(d),
       onPresenceChanged: (d) => ref.current.onPresenceChanged?.(d),
       onMembersChanged: (d) => ref.current.onMembersChanged?.(d),
+      onConversationRenamed: (d) => ref.current.onConversationRenamed?.(d),
       onStatus: (s) => ref.current.onStatus?.(s),
     };
     return subscribeRealtime(proxy);

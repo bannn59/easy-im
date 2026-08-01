@@ -96,7 +96,10 @@
     "edited": "已编辑",
     "recall": "撤回",
     "recalled": "对方撤回了一条消息",
-    "recalledPreview": "[已撤回]"
+    "recalledPreview": "[已撤回]",
+    "renameGroup": "重命名群聊",
+    "renameGroupPlaceholder": "输入群名",
+    "renameBlank": "群名不能为空"
   },
   "friends": {
     "eyebrow": "通讯录",
@@ -123,6 +126,7 @@
     "you": "你",
     "untitled": "未命名",
     "cancel": "取消",
+    "save": "保存",
     "requestFailed": "请求失败",
     "failedToLoad": "加载失败",
     "createFailed": "创建失败",

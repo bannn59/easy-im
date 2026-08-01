@@ -84,3 +84,13 @@ export function transferGroupOwner(
     body: { user_id: userId },
   });
 }
+
+export function renameGroup(
+  conversationId: string,
+  title: string,
+): Promise<Conversation> {
+  return apiRequest<{ conversation: Conversation }>(`/v1/conversations/${conversationId}`, {
+    method: 'PATCH',
+    body: { title },
+  }).then((res) => res.conversation);
+}

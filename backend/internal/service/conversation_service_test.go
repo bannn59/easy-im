@@ -166,6 +166,16 @@ func (m *memConv) SetOwner(_ context.Context, conversationID, newOwnerID string)
 	return nil
 }
 
+func (m *memConv) SetTitle(_ context.Context, conversationID, title string) error {
+	c, ok := m.items[conversationID]
+	if !ok {
+		return apperr.NotFound("conversation not found")
+	}
+	c.Title = &title
+	m.items[conversationID] = c
+	return nil
+}
+
 // betterDirect mirrors SQL: last_message_at DESC NULLS LAST, created_at DESC, id DESC.
 func betterDirect(a, b domain.Conversation) bool {
 	if a.LastMessageAt != nil && b.LastMessageAt == nil {
@@ -686,5 +696,47 @@ func TestAddMembersAlreadyInGroup(t *testing.T) {
 	err := svc.AddMembers(context.Background(), gid, "self", []string{"peer1"})
 	if !errors.Is(err, apperr.ErrConflict) {
 		t.Fatalf("err = %v, want conflict (already in group)", err)
+	}
+}
+
+func TestRenameGroup(t *testing.T) {
+	svc, conv, gid := membersTestHarness()
+	title := "新群名"
+	updated, err := svc.RenameGroup(context.Background(), gid, "self", &title)
+	if err != nil {
+		t.Fatalf("RenameGroup: %v", err)
+	}
+	if updated.Title == nil || *updated.Title != title {
+		t.Fatalf("returned title = %v, want %q", updated.Title, title)
+	}
+	if got := conv.items[gid].Title; got == nil || *got != title {
+		t.Fatalf("store title = %v, want %q", got, title)
+	}
+}
+
+func TestRenameGroupNonOwnerForbidden(t *testing.T) {
+	svc, _, gid := membersTestHarness()
+	title := "新群名"
+	_, err := svc.RenameGroup(context.Background(), gid, "peer1", &title)
+	if !errors.Is(err, apperr.ErrForbidden) {
+		t.Fatalf("err = %v, want forbidden (non-owner)", err)
+	}
+}
+
+func TestRenameGroupNonMember(t *testing.T) {
+	svc, _, gid := membersTestHarness()
+	title := "新群名"
+	_, err := svc.RenameGroup(context.Background(), gid, "ghost", &title)
+	if !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("err = %v, want not found (non-member)", err)
+	}
+}
+
+func TestRenameGroupBlankRejected(t *testing.T) {
+	svc, _, gid := membersTestHarness()
+	blank := "   "
+	_, err := svc.RenameGroup(context.Background(), gid, "self", &blank)
+	if !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("err = %v, want invalid (blank title)", err)
 	}
 }

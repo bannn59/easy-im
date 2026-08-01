@@ -298,6 +298,17 @@ func (r *ConversationRepo) SetOwner(ctx context.Context, conversationID, newOwne
 	return nil
 }
 
+// SetTitle updates a conversation's display title (group rename).
+func (r *ConversationRepo) SetTitle(ctx context.Context, conversationID, title string) error {
+	if _, err := r.pool.Exec(ctx, `
+		UPDATE conversations SET title = $2, updated_at = now()
+		WHERE id = $1
+	`, conversationID, title); err != nil {
+		return apperr.Internal("set title failed", err)
+	}
+	return nil
+}
+
 func (r *ConversationRepo) listMembers(ctx context.Context, conversationID string) ([]domain.User, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT u.id, u.email, u.display_name, u.created_at, u.updated_at

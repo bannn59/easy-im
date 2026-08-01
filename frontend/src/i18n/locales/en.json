@@ -96,7 +96,10 @@
     "edited": "edited",
     "recall": "Recall",
     "recalled": "Message recalled",
-    "recalledPreview": "[recalled]"
+    "recalledPreview": "[recalled]",
+    "renameGroup": "Rename group",
+    "renameGroupPlaceholder": "Group name",
+    "renameBlank": "Group name cannot be empty"
   },
   "friends": {
     "eyebrow": "Contacts",
@@ -123,6 +126,7 @@
     "you": "You",
     "untitled": "Untitled",
     "cancel": "Cancel",
+    "save": "Save",
     "requestFailed": "Request failed",
     "failedToLoad": "Failed to load",
     "createFailed": "Create failed",

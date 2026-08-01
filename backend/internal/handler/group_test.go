@@ -95,6 +95,16 @@ func (m *memConvForHandler) SetOwner(_ context.Context, conversationID, newOwner
 	return nil
 }
 
+func (m *memConvForHandler) SetTitle(_ context.Context, conversationID, title string) error {
+	c, ok := m.items[conversationID]
+	if !ok {
+		return apperr.NotFound("conversation not found")
+	}
+	c.Title = &title
+	m.items[conversationID] = c
+	return nil
+}
+
 // memUsersForHandler resolves users by id.
 type memUsersForHandler struct {
 	byID map[string]domain.User
@@ -266,6 +276,47 @@ func TestTransferOwnerHandler(t *testing.T) {
 	h.TransferOwner(rr, req, "g1")
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestRenameGroupHandlerSuccess(t *testing.T) {
+	h := membersHandlerHarness()
+	req := groupReq(http.MethodPatch, "/v1/conversations/g1", `{"title":"Trip 2"}`, "self")
+	rr := httptest.NewRecorder()
+	h.RenameGroup(rr, req, "g1")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body %s", rr.Code, rr.Body.String())
+	}
+	var out struct {
+		Conversation struct {
+			Title *string `json:"title"`
+		} `json:"conversation"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Conversation.Title == nil || *out.Conversation.Title != "Trip 2" {
+		t.Fatalf("title = %v, want Trip 2", out.Conversation.Title)
+	}
+}
+
+func TestRenameGroupHandlerBlank(t *testing.T) {
+	h := membersHandlerHarness()
+	req := groupReq(http.MethodPatch, "/v1/conversations/g1", `{"title":"  "}`, "self")
+	rr := httptest.NewRecorder()
+	h.RenameGroup(rr, req, "g1")
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestRenameGroupHandlerNonOwner(t *testing.T) {
+	h := membersHandlerHarness()
+	req := groupReq(http.MethodPatch, "/v1/conversations/g1", `{"title":"Trip 2"}`, "peer1")
+	rr := httptest.NewRecorder()
+	h.RenameGroup(rr, req, "g1")
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403; body %s", rr.Code, rr.Body.String())
 	}
 }
 

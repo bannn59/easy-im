@@ -26,6 +26,7 @@ type ConversationStore interface {
 	AddMembers(ctx context.Context, conversationID string, userIDs []string) error
 	RemoveMember(ctx context.Context, conversationID, userID string) error
 	SetOwner(ctx context.Context, conversationID, newOwnerID string) error
+	SetTitle(ctx context.Context, conversationID, title string) error
 }
 
 // ConversationUserLookup resolves users for open-DM.
@@ -241,6 +242,45 @@ func (s *ConversationService) broadcastMembersChanged(ctx context.Context, conve
 		return
 	}
 	s.rt.PublishToUsers(members, hub.Event{Type: "members.changed", Payload: payload})
+}
+
+// RenameGroup updates a group's display title. Only the group owner may rename.
+func (s *ConversationService) RenameGroup(ctx context.Context, conversationID, operatorID string, title *string) (domain.Conversation, error) {
+	if _, err := s.requireOwner(ctx, conversationID, operatorID); err != nil {
+		return domain.Conversation{}, err
+	}
+	if title == nil || strings.TrimSpace(*title) == "" {
+		return domain.Conversation{}, apperr.Invalid("title is required")
+	}
+	if err := s.convs.SetTitle(ctx, conversationID, *title); err != nil {
+		return domain.Conversation{}, err
+	}
+	updated, err := s.convs.GetIfMember(ctx, conversationID, operatorID)
+	if err != nil {
+		return domain.Conversation{}, err
+	}
+	ids, err := s.convs.ListMemberIDs(ctx, conversationID)
+	if err != nil {
+		return domain.Conversation{}, err
+	}
+	s.broadcastRenamed(ctx, conversationID, *title, updated.UpdatedAt, ids)
+	return updated, nil
+}
+
+// broadcastRenamed pushes a conversation.renamed WS event to all members.
+func (s *ConversationService) broadcastRenamed(ctx context.Context, conversationID, title string, updatedAt time.Time, members []string) {
+	if s.rt == nil {
+		return
+	}
+	payload, err := json.Marshal(map[string]any{
+		"conversation_id": conversationID,
+		"title":           title,
+		"updated_at":      updatedAt.UTC().Format(time.RFC3339),
+	})
+	if err != nil {
+		return
+	}
+	s.rt.PublishToUsers(members, hub.Event{Type: "conversation.renamed", Payload: payload})
 }
 
 // AddMembers adds friend users to a group. Any member may add their friends.

@@ -227,6 +227,30 @@ func (h *ConversationHandler) TransferOwner(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
+// renameGroupBody is the request body for PATCH /v1/conversations/{id}.
+type renameGroupBody struct {
+	Title *string `json:"title"`
+}
+
+// RenameGroup updates a group's display title (owner only).
+func (h *ConversationHandler) RenameGroup(w http.ResponseWriter, r *http.Request, conversationID string) {
+	if h.Conv == nil {
+		WriteError(w, r, apperr.Unavailable("conversations not configured"))
+		return
+	}
+	var body renameGroupBody
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&body); err != nil {
+		WriteError(w, r, apperr.Invalid("invalid JSON body"))
+		return
+	}
+	c, err := h.Conv.RenameGroup(r.Context(), conversationID, UserIDFromContext(r.Context()), body.Title)
+	if err != nil {
+		WriteError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"conversation": toConversationDTO(c, h.Hub)})
+}
+
 type markReadBody struct {
 	Seq *int64 `json:"seq"`
 }

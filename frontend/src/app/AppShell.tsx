@@ -170,6 +170,15 @@ export function AppShell() {
         ),
       );
     },
+    onConversationRenamed: (data) => {
+      setItems((prev) =>
+        prev.map((c) =>
+          c.id === data.conversation_id
+            ? { ...c, title: data.title, updated_at: data.updated_at }
+            : c,
+        ),
+      );
+    },
   });
 
   // When entering a room, zero badge optimistically; room will mark-read.
