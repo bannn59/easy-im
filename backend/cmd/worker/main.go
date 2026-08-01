@@ -13,6 +13,7 @@ import (
 
 	"easy-im/backend/internal/config"
 	"easy-im/backend/internal/db"
+	"easy-im/backend/internal/metrics"
 	"easy-im/backend/internal/mq"
 	"easy-im/backend/internal/push"
 	"easy-im/backend/internal/repo"
@@ -127,6 +128,12 @@ func run(ctx context.Context, pool *pgxpool.Pool, cfg config.Config, log *slog.L
 
 	log.Info("worker started", "service", "worker", "brokers", cfg.KafkaBrokers)
 
+	metricsSrv := metrics.NewServer(cfg.MetricsAddr, log)
+	if err := metricsSrv.Start(); err != nil {
+		log.Error("metrics start failed", "error", err)
+		os.Exit(1)
+	}
+
 	select {
 	case <-runCtx.Done():
 		log.Info("worker shutting down", "service", "worker")
@@ -136,5 +143,6 @@ func run(ctx context.Context, pool *pgxpool.Pool, cfg config.Config, log *slog.L
 			os.Exit(1)
 		}
 	}
+	metricsSrv.Shutdown(10 * time.Second)
 	agg.Stop()
 }

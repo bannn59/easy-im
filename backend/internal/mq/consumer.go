@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
+
+	"easy-im/backend/internal/metrics"
 )
 
 // ConsumerOpts configures a consumer group.
@@ -41,6 +43,7 @@ type Message struct {
 type Consumer struct {
 	client *kgo.Client
 	topics []string
+	group  string
 	log    *slog.Logger
 }
 
@@ -62,7 +65,7 @@ func NewConsumer(opts ConsumerOpts) (*Consumer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("new kafka consumer: %w", err)
 	}
-	return &Consumer{client: client, topics: opts.Topics, log: opts.Log}, nil
+	return &Consumer{client: client, topics: opts.Topics, group: opts.Group, log: opts.Log}, nil
 }
 
 // Run consumes records until ctx is cancelled, dispatching each to handler.
@@ -82,8 +85,10 @@ func (c *Consumer) Run(ctx context.Context, handler func(ctx context.Context, ms
 		fetches.EachRecord(func(r *kgo.Record) {
 			msg := Message{Topic: r.Topic, Key: string(r.Key), Value: r.Value}
 			if err := handler(ctx, msg); err != nil {
+				metrics.KafkaConsumeErrorsTotal.WithLabelValues(r.Topic, c.group).Inc()
 				c.log.Error("kafka handler failed", "topic", r.Topic, "error", err)
 			}
+			metrics.KafkaConsumeTotal.WithLabelValues(r.Topic, c.group).Inc()
 			// Advance the consumer-group offset after processing. Records
 			// whose handler failed are skipped (at-least-once boundary; a
 			// poison message stays uncommitted and is retried on restart).

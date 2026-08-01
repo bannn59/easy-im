@@ -34,6 +34,9 @@ type Config struct {
 	PushSubject string
 	// PushAggregateWindow is the offline-push aggregation window.
 	PushAggregateWindow time.Duration
+	// MetricsAddr is the Prometheus metrics listen address. Empty disables the
+	// metrics server (process behavior is unchanged).
+	MetricsAddr string
 }
 
 // Load reads configuration from environment variables.
@@ -101,5 +104,6 @@ func Load() Config {
 		VAPIDPrivateKey:     strings.TrimSpace(os.Getenv("VAPID_PRIVATE_KEY")),
 		PushSubject:         strings.TrimSpace(os.Getenv("PUSH_SUBJECT")),
 		PushAggregateWindow: aggWindow,
+		MetricsAddr:         strings.TrimSpace(os.Getenv("METRICS_ADDR")),
 	}
 }

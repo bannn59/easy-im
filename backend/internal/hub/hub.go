@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	"easy-im/backend/internal/metrics"
 )
 
 // Event is a server-pushed frame.
@@ -64,7 +66,10 @@ func (h *Hub) Register(c *Client) {
 	}
 	h.clients[c.UserID][c] = struct{}{}
 	h.mu.Unlock()
+	metrics.WSConnectionsTotal.WithLabelValues("api").Inc()
+	metrics.WSOnlineConns.Inc()
 	if !wasOnline {
+		metrics.WSOnlineUsers.Inc()
 		h.publishPresence(c.UserID, true)
 	}
 }
@@ -76,10 +81,12 @@ func (h *Hub) Unregister(c *Client) {
 		if _, exists := set[c]; exists {
 			delete(set, c)
 			close(c.Send)
+			metrics.WSOnlineConns.Dec()
 		}
 		if len(set) == 0 {
 			delete(h.clients, c.UserID)
 			becameOffline = true
+			metrics.WSOnlineUsers.Dec()
 		}
 	}
 	h.mu.Unlock()

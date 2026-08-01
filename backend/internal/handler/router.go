@@ -106,6 +106,7 @@ func NewMux(deps Deps) http.Handler {
 	var h http.Handler = mux
 	h = withCORS(allowedOrigins)(h)
 	h = Recover(deps.Log, h)
+	h = MetricsMiddleware("api")(h)
 	h = RequestID(h)
 	return h
 }

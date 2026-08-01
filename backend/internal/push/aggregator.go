@@ -3,6 +3,8 @@ package push
 import (
 	"sync"
 	"time"
+
+	"easy-im/backend/internal/metrics"
 )
 
 // PendingNotification is one conversation's aggregated notification state
@@ -63,6 +65,7 @@ func (a *Aggregator) Add(conversationID, senderName, preview string) {
 	p.SenderName = senderName
 	p.Preview = preview
 	p.Count++
+	metrics.PushAggregatedTotal.Inc()
 }
 
 func (a *Aggregator) flush(conversationID string) {
@@ -77,6 +80,7 @@ func (a *Aggregator) flush(conversationID string) {
 	}
 	a.mu.Unlock()
 	if ok {
+		metrics.PushAggregateBatchesTotal.Inc()
 		a.flushFn(*p)
 	}
 }

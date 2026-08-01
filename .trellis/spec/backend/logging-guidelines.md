@@ -97,6 +97,55 @@ Gateway and fan-out paths can be extremely chatty. Rules:
 
 ---
 
+## Metrics (Prometheus)
+
+easy-im processes expose a Prometheus `/metrics` endpoint on a **dedicated
+port** (`METRICS_ADDR`, api default `:9090`, worker default `:9091`) so
+business routes are never polluted. Empty `METRICS_ADDR` disables the server
+(process behavior is unchanged — all instrumentation is nil-safe).
+
+### Metric naming
+
+Prefix every metric with `easyim_` + subsystem, e.g.:
+
+| Subsystem | Examples |
+|-----------|----------|
+| `http` | `easyim_http_requests_total{service,method,path,status}`, `easyim_http_request_duration_seconds{method,path}` |
+| `ws` | `easyim_ws_online_conns`, `easyim_ws_online_users`, `easyim_ws_connections_total{service}` |
+| `messages` | `easyim_messages_sent_total` |
+| `fanout` | `easyim_fanout_events_total{event_type}`, `easyim_fanout_skipped_total{reason}` |
+| `kafka` | `easyim_kafka_publish_total{topic,result}`, `easyim_kafka_consume_total{topic,group}` |
+| `push` | `easyim_push_sent_total{result}`, `easyim_push_aggregated_total` |
+
+### Label conventions
+
+- Reuse the structured-logging field names (`service`, `event_type`, `result`,
+  `topic`, `group`) so logs and metrics join cleanly.
+- Normalize dynamic HTTP path segments to `{id}` (UUIDs) to keep label
+  cardinality bounded.
+- Do not put PII, tokens, or full message bodies in labels or metric values.
+
+### Where metrics live
+
+- `internal/metrics` owns the server + registry and every metric declaration.
+- Instrumentation calls are sprinkled at the layer boundaries (handler
+  middleware, hub, mq, service, push); they must be nil-safe and never block
+  the business path.
+
+### What to instrument
+
+- Rates and volumes (HTTP, WS connections, message send, Kafka publish/consume,
+  push) as counters.
+- Latency (HTTP request duration) as histograms.
+- Current state (WS online conns/users) as gauges.
+
+### What NOT to instrument
+
+- Per-heartbeat counters (log at debug instead).
+- Anything requiring request-scoped state beyond method/path/status labels.
+
+---
+
 ## Verification
 
 - Grep for `fmt.Println` / `log.Print` in `internal/` once code exists.

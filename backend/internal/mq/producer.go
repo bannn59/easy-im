@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
+
+	"easy-im/backend/internal/metrics"
 )
 
 // Producer publishes bus events to Kafka. Implementations must be safe to call
@@ -57,14 +59,22 @@ func NewKafkaProducer(opts ProducerOpts) (Producer, error) {
 // ProduceSync issues a synchronous produce so callers (e.g. tests) can observe
 // the outcome directly.
 func (p *KafkaProducer) ProduceSync(ctx context.Context, topic, key string, v any) error {
+	start := time.Now()
 	val, err := json.Marshal(v)
 	if err != nil {
+		metrics.KafkaPublishTotal.WithLabelValues(topic, "marshal_err").Inc()
 		return fmt.Errorf("marshal event: %w", err)
 	}
 	rec := &kgo.Record{Topic: topic, Key: []byte(key), Value: val}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	return p.client.ProduceSync(ctx, rec).FirstErr()
+	if err := p.client.ProduceSync(ctx, rec).FirstErr(); err != nil {
+		metrics.KafkaPublishTotal.WithLabelValues(topic, "error").Inc()
+		return err
+	}
+	metrics.KafkaPublishTotal.WithLabelValues(topic, "ok").Inc()
+	metrics.KafkaPublishDuration.WithLabelValues(topic).Observe(time.Since(start).Seconds())
+	return nil
 }
 
 // Publish enqueues an event for async delivery. The passed ctx is used for
@@ -74,12 +84,18 @@ func (p *KafkaProducer) ProduceSync(ctx context.Context, topic, key string, v an
 func (p *KafkaProducer) Publish(ctx context.Context, topic, key string, v any) error {
 	val, err := json.Marshal(v)
 	if err != nil {
+		metrics.KafkaPublishTotal.WithLabelValues(topic, "marshal_err").Inc()
 		return fmt.Errorf("marshal event: %w", err)
 	}
 	rec := &kgo.Record{Topic: topic, Key: []byte(key), Value: val}
 	p.client.Produce(context.Background(), rec, func(r *kgo.Record, err error) {
-		if err != nil && p.onErr != nil {
-			p.onErr(fmt.Errorf("publish %s: %w", topic, err))
+		if err != nil {
+			metrics.KafkaPublishTotal.WithLabelValues(topic, "error").Inc()
+			if p.onErr != nil {
+				p.onErr(fmt.Errorf("publish %s: %w", topic, err))
+			}
+		} else {
+			metrics.KafkaPublishTotal.WithLabelValues(topic, "ok").Inc()
 		}
 	})
 	return nil

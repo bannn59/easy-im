@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"easy-im/backend/internal/hub"
+	"easy-im/backend/internal/metrics"
 	"easy-im/backend/internal/mq"
 	"easy-im/backend/internal/service"
 )
@@ -99,7 +100,9 @@ func FanoutHandler(ctx context.Context, opts FanoutConsumerOpts, msg mq.Message)
 	if err := mq.DecodeInto(msg, &ev); err != nil {
 		return err
 	}
+	eventType := string(ev.EventType())
 	if ev.Origin == opts.NodeID {
+		metrics.FanoutSkippedTotal.WithLabelValues("own_origin").Inc()
 		return nil // local broadcast already delivered on this node
 	}
 
@@ -107,6 +110,7 @@ func FanoutHandler(ctx context.Context, opts FanoutConsumerOpts, msg mq.Message)
 	switch ev.EventType() {
 	case mq.MessageCreated, mq.MessageEdited, mq.MessageRecalled:
 		if opts.Msg == nil {
+			metrics.FanoutSkippedTotal.WithLabelValues("no_msg").Inc()
 			return nil
 		}
 		f, err := opts.Msg.FanoutMessage(ctx, ev.ID, wsTypeFor(ev.EventType()))
@@ -116,6 +120,7 @@ func FanoutHandler(ctx context.Context, opts FanoutConsumerOpts, msg mq.Message)
 		frame = f
 	case mq.MessageRead:
 		if opts.Conv == nil {
+			metrics.FanoutSkippedTotal.WithLabelValues("no_conv").Inc()
 			return nil
 		}
 		f, err := opts.Conv.ReadFrame(ev.ConversationID, ev.ReadByUserID, ev.LastReadSeq)
@@ -124,16 +129,19 @@ func FanoutHandler(ctx context.Context, opts FanoutConsumerOpts, msg mq.Message)
 		}
 		frame = f
 	default:
+		metrics.FanoutSkippedTotal.WithLabelValues("unknown_type").Inc()
 		return nil
 	}
 
 	if opts.Members == nil || opts.Hub == nil {
+		metrics.FanoutSkippedTotal.WithLabelValues("no_delivery").Inc()
 		return nil
 	}
 	memberIDs, err := opts.Members.ListMemberIDs(ctx, ev.ConversationID)
 	if err != nil || len(memberIDs) == 0 {
 		return err
 	}
+	metrics.FanoutEventsTotal.WithLabelValues(eventType).Inc()
 	opts.Hub.PublishToUsers(memberIDs, frame)
 	return nil
 }

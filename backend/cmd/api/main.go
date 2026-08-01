@@ -14,6 +14,7 @@ import (
 	"easy-im/backend/internal/app"
 	"easy-im/backend/internal/config"
 	"easy-im/backend/internal/db"
+	"easy-im/backend/internal/metrics"
 )
 
 func main() {
@@ -57,6 +58,12 @@ func main() {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
+	metricsSrv := metrics.NewServer(cfg.MetricsAddr, log)
+	if err := metricsSrv.Start(); err != nil {
+		log.Error("metrics start failed", "error", err)
+		os.Exit(1)
+	}
+
 	go func() {
 		log.Info("api listening",
 			"service", "api",
@@ -79,6 +86,9 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Error("shutdown", "error", err)
 		os.Exit(1)
+	}
+	if metricsSrv != nil {
+		metricsSrv.Shutdown(10 * time.Second)
 	}
 	log.Info("api stopped", "service", "api")
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"time"
+
+	"easy-im/backend/internal/metrics"
 )
 
 // Flusher delivers aggregated notifications to offline conversation members'
@@ -61,9 +63,13 @@ func (f *Flusher) flush(p PendingNotification) {
 		for _, sub := range subs {
 			res := f.sender.Send(ctx, sub.Endpoint, sub.P256DH, sub.Auth, payload)
 			if res.Gone {
+				metrics.PushSentTotal.WithLabelValues("gone").Inc()
 				stale = append(stale, sub.Endpoint)
 			} else if res.Err != nil {
+				metrics.PushSentTotal.WithLabelValues("error").Inc()
 				f.log.Warn("push send failed", "endpoint", sub.Endpoint, "error", res.Err)
+			} else {
+				metrics.PushSentTotal.WithLabelValues("ok").Inc()
 			}
 		}
 	}

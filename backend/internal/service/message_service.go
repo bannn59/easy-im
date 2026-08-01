@@ -14,6 +14,7 @@ import (
 	"easy-im/backend/internal/apperr"
 	"easy-im/backend/internal/domain"
 	"easy-im/backend/internal/hub"
+	"easy-im/backend/internal/metrics"
 )
 
 // MessageStore persists messages.
@@ -241,6 +242,7 @@ func (s *MessageService) Send(ctx context.Context, in SendMessageInput) (Message
 	}
 	s.broadcast(ctx, view, "message.created")
 	s.publishEvent(ctx, out)
+	metrics.MessagesSentTotal.Inc()
 	return view, nil
 }
 
