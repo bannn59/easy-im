@@ -1,5 +1,7 @@
 # easy-im
 
+> **[简体中文](README.zh-CN.md)** · English
+
 A self-hostable instant-messaging monorepo. Go backend (stdlib HTTP + PostgreSQL + Kafka) with a React/TypeScript frontend.
 
 | Path | Stack | Status |
