@@ -838,3 +838,25 @@ members.changed 与 conversation.renamed 从本地节点广播升级为跨节点
 ### Status
 
 [OK] **Completed**
+
+
+## Session 26: 全局搜索与关键词高亮
+
+**Date**: 2026-08-01
+**Task**: 全局搜索与关键词高亮
+**Branch**: `main`
+
+### Summary
+
+跨会话全局搜索 + 关键词高亮。新增 GET /v1/search/messages（JOIN conversation_members ACL、排除撤回、(created_at,id) 游标分页、结果带会话上下文）；domain.SearchCursor/GlobalSearchResult；前端 GlobalSearchPanel (/search) + highlightQuery <mark> 高亮（XSS 转义）应用到全局与会话内搜索。7 个新测试 + 端到端实测（跨会话 ACL、分页无重叠、撤回排除、XSS 安全）。spec 同步全局搜索契约。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6280595` | (see git log) |
+| `921f15d` | (see git log) |
+
+### Status
+
+[OK] **Completed**
