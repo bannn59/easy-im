@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { searchMessages, type Message } from '../../api/messages';
 import { ApiError } from '../../api/http';
 import { displayName } from './types';
+import { highlightQuery } from './searchHighlight';
 import type { PublicUser } from '../../api/auth';
 
 const PAGE = 50;
@@ -116,7 +117,7 @@ export default function SearchPanel({
                 onClick={() => onJump(m.seq, m.id)}
               >
                 <span className="room__search-result-who">{resolveLabel(m)}</span>
-                <span className="room__search-result-body">{m.body}</span>
+                <span className="room__search-result-body">{highlightQuery(m.body, query)}</span>
               </button>
             </li>
           ))}

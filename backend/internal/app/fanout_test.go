@@ -78,6 +78,9 @@ func (m *memMessageStore) Search(_ context.Context, _, _ string, _ int64, _ int)
 func (m *memMessageStore) ListAround(_ context.Context, _ string, _ int64, _ int) ([]domain.Message, error) {
 	return nil, nil
 }
+func (m *memMessageStore) GlobalSearch(_ context.Context, _, _ string, _ *domain.SearchCursor, _ int) ([]domain.GlobalSearchResult, *domain.SearchCursor, error) {
+	return nil, nil, nil
+}
 
 type memMembers map[string][]string
 

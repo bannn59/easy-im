@@ -8,7 +8,8 @@
     "settings": "Settings",
     "signIn": "Sign in",
     "register": "Register",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "search": "Search"
   },
   "home": {
     "eyebrow": "Instant messaging",
@@ -104,7 +105,11 @@
     "searchTitle": "Search messages",
     "searchPlaceholder": "Search this conversation…",
     "searchEmpty": "No messages match \"{{q}}\".",
-    "searchMore": "Load more"
+    "searchMore": "Load more",
+    "globalSearchTitle": "Global search",
+    "globalSearchPlaceholder": "Search all conversations…",
+    "conversation": "Conversation",
+    "youSaid": "You said"
   },
   "friends": {
     "eyebrow": "Contacts",

@@ -20,14 +20,17 @@ type memMsg struct {
 	byID map[string]domain.Message
 	cli  map[string]string // sender|client -> id
 	list map[string][]domain.Message
+	// members maps conversation -> member user set, used by GlobalSearch ACL.
+	members map[string]map[string]bool
 }
 
 func newMemMsg() *memMsg {
 	return &memMsg{
-		seq:  map[string]int64{},
-		byID: map[string]domain.Message{},
-		cli:  map[string]string{},
-		list: map[string][]domain.Message{},
+		seq:     map[string]int64{},
+		byID:    map[string]domain.Message{},
+		cli:     map[string]string{},
+		list:    map[string][]domain.Message{},
+		members: map[string]map[string]bool{},
 	}
 }
 
@@ -112,6 +115,43 @@ func (m *memMsg) ListAround(_ context.Context, conversationID string, aroundSeq 
 		}
 	}
 	return out, nil
+}
+
+func (m *memMsg) GlobalSearch(_ context.Context, userID, query string, cursor *domain.SearchCursor, limit int) ([]domain.GlobalSearchResult, *domain.SearchCursor, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	// conversations map (mock: conv -> member set)
+	var out []domain.GlobalSearchResult
+	for convID, msgs := range m.list {
+		members := m.members[convID]
+		if _, ok := members[userID]; !ok {
+			continue
+		}
+		for _, msg := range msgs {
+			if msg.RecalledAt != nil {
+				continue
+			}
+			if !strings.Contains(strings.ToLower(msg.Body), strings.ToLower(query)) {
+				continue
+			}
+			out = append(out, domain.GlobalSearchResult{Message: msg})
+		}
+	}
+	// sort by created_at desc, id desc
+	for i := 0; i < len(out); i++ {
+		for j := i + 1; j < len(out); j++ {
+			if out[j].Message.CreatedAt.After(out[i].Message.CreatedAt) {
+				out[i], out[j] = out[j], out[i]
+			}
+		}
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil, nil
 }
 
 func (m *memMsg) FindByID(_ context.Context, id string) (domain.Message, error) {
@@ -584,5 +624,84 @@ func TestMessageListAroundNonMember(t *testing.T) {
 	_, err := svc.ListAround(context.Background(), "c1", "ghost", 5, 2)
 	if !errors.Is(err, apperr.ErrNotFound) {
 		t.Fatalf("err = %v, want not found", err)
+	}
+}
+
+func TestGlobalSearchAcrossConversations(t *testing.T) {
+	store := newMemMsg()
+	members := memMembers{
+		"c1": {"u1": true, "u2": true},
+		"c2": {"u1": true},
+		"c3": {"u2": true}, // u1 NOT a member -> results must be excluded
+	}
+	svc := NewMessageService(store, members, nil)
+	ctx := context.Background()
+
+	// Seed members on the store for GlobalSearch ACL.
+	store.members = map[string]map[string]bool{
+		"c1": {"u1": true, "u2": true},
+		"c2": {"u1": true},
+		"c3": {"u2": true},
+	}
+
+	send := func(conv, body, sender string) {
+		if _, err := svc.Send(ctx, SendMessageInput{ConversationID: conv, SenderID: sender, Body: body, ClientMsgID: conv + "-" + body}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	send("c1", "hello from c1", "u1")
+	send("c2", "hello from c2", "u1")
+	send("c3", "hello from c3 u1 not member", "u2") // u1 not in c3
+
+	// Recall one hit in c1 to verify exclusion.
+	res, _, err := svc.GlobalSearch(ctx, "u1", "hello", nil, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res) != 2 {
+		t.Fatalf("want 2 hits (c1+c2), got %d", len(res))
+	}
+	convs := map[string]bool{}
+	for _, r := range res {
+		convs[r.Message.Message.ConversationID] = true
+	}
+	if !convs["c1"] || !convs["c2"] {
+		t.Fatalf("missing expected conversations: %v", convs)
+	}
+	if convs["c3"] {
+		t.Fatal("c3 result leaked despite u1 not being a member")
+	}
+}
+
+func TestGlobalSearchBlankQuery(t *testing.T) {
+	store := newMemMsg()
+	members := memMembers{"c1": {"u1": true}}
+	svc := NewMessageService(store, members, nil)
+	_, _, err := svc.GlobalSearch(context.Background(), "u1", "  ", nil, 50)
+	if !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("err = %v, want invalid", err)
+	}
+}
+
+func TestGlobalSearchExcludesRecalled(t *testing.T) {
+	store := newMemMsg()
+	members := memMembers{"c1": {"u1": true}}
+	svc := NewMessageService(store, members, nil)
+	store.members = map[string]map[string]bool{"c1": {"u1": true}}
+	ctx := context.Background()
+
+	m, err := svc.Send(ctx, SendMessageInput{ConversationID: "c1", SenderID: "u1", Body: "secret hello", ClientMsgID: "secret"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Recall(ctx, "c1", m.Message.ID, "u1"); err != nil {
+		t.Fatal(err)
+	}
+	res, _, err := svc.GlobalSearch(ctx, "u1", "hello", nil, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res) != 0 {
+		t.Fatalf("recalled message should be excluded, got %d hits", len(res))
 	}
 }

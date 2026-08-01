@@ -47,6 +47,24 @@ export function searchMessages(
   });
 }
 
+export type GlobalSearchResult = Message & {
+  conversation_id: string;
+  conversation_title?: string | null;
+};
+
+export function globalSearchMessages(
+  query: string,
+  opts?: { cursor?: string; limit?: number },
+): Promise<{ messages: GlobalSearchResult[]; next_cursor: string }> {
+  const q = new URLSearchParams();
+  q.set('q', query);
+  if (opts?.cursor) q.set('cursor', opts.cursor);
+  if (opts?.limit) q.set('limit', String(opts.limit));
+  return apiRequest(`/v1/search/messages?${q.toString()}`, {
+    method: 'GET',
+  });
+}
+
 export function sendMessage(
   conversationId: string,
   body: { body: string; client_msg_id: string; reply_to_message_id?: string },

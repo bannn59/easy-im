@@ -23,6 +23,7 @@ type MessageStore interface {
 	List(ctx context.Context, conversationID string, beforeSeq int64, limit int) ([]domain.Message, error)
 	Search(ctx context.Context, conversationID, query string, beforeSeq int64, limit int) ([]domain.Message, error)
 	ListAround(ctx context.Context, conversationID string, aroundSeq int64, window int) ([]domain.Message, error)
+	GlobalSearch(ctx context.Context, userID, query string, cursor *domain.SearchCursor, limit int) ([]domain.GlobalSearchResult, *domain.SearchCursor, error)
 	FindByID(ctx context.Context, id string) (domain.Message, error)
 	FindByIDs(ctx context.Context, ids []string) (map[string]domain.Message, error)
 	UpdateBody(ctx context.Context, id, body string, editedAt time.Time) (domain.Message, error)
@@ -371,6 +372,40 @@ func (s *MessageService) ListAround(ctx context.Context, conversationID, userID 
 		return nil, err
 	}
 	return s.hydrateViews(ctx, list)
+}
+
+// GlobalSearchResultView is a global search hit: the message plus conversation
+// title for display.
+type GlobalSearchResultView struct {
+	Message           MessageView
+	ConversationTitle *string
+}
+
+// GlobalSearch searches messages across all conversations the user belongs to,
+// newest-first. Recalled messages are excluded. Blank query is rejected.
+func (s *MessageService) GlobalSearch(ctx context.Context, userID, query string, cursor *domain.SearchCursor, limit int) ([]GlobalSearchResultView, *domain.SearchCursor, error) {
+	if userID == "" {
+		return nil, nil, apperr.Unauthorized("missing credentials")
+	}
+	if s.messages == nil {
+		return nil, nil, apperr.Unavailable("database not configured")
+	}
+	if strings.TrimSpace(query) == "" {
+		return nil, nil, apperr.Invalid("search query is required")
+	}
+	results, next, err := s.messages.GlobalSearch(ctx, userID, query, cursor, limit)
+	if err != nil {
+		return nil, nil, err
+	}
+	out := make([]GlobalSearchResultView, 0, len(results))
+	for _, r := range results {
+		view, err := s.viewOf(ctx, r.Message)
+		if err != nil {
+			return nil, nil, err
+		}
+		out = append(out, GlobalSearchResultView{Message: view, ConversationTitle: r.ConversationTitle})
+	}
+	return out, next, nil
 }
 
 const editRecallWindow = 5 * time.Minute

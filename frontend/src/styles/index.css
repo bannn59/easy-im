@@ -1327,3 +1327,62 @@ code {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
+
+/* —— Global search —— */
+.global-search__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+}
+
+.global-search__list li + li {
+  border-top: 1px solid var(--line);
+}
+
+.global-search__result {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: var(--space-3) 0;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink);
+}
+
+.global-search__result:hover {
+  color: var(--ink-secondary);
+}
+
+.global-search__conv {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-tertiary);
+  margin-bottom: var(--space-1);
+}
+
+.global-search__body {
+  display: block;
+  font-size: 0.9375rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.global-search__who {
+  display: block;
+  font-size: 0.75rem;
+  margin-top: var(--space-1);
+}
+
+/* Keyword highlight in search results. */
+mark {
+  background: var(--line-strong);
+  color: var(--ink);
+  padding: 0 0.1em;
+}

@@ -1,8 +1,10 @@
-import { BrowserRouter, NavLink, Route, Routes, Link } from 'react-router-dom';
+import { BrowserRouter, NavLink, Route, Routes, Link, Navigate } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../i18n/LanguageSwitcher';
 import { AuthPage } from './AuthPage';
 import { ConversationRoom } from '../features/chat';
+import GlobalSearchPanel from '../features/chat/GlobalSearchPanel';
 import { FriendsPage } from '../features/friends';
 import { SettingsPage } from '../features/settings';
 import { AppShell, ConversationHome } from './AppShell';
@@ -29,6 +31,7 @@ function Header() {
             <>
               <NavLink to="/app">{t('nav.workspace')}</NavLink>
               <NavLink to="/friends">{t('nav.friends')}</NavLink>
+              <NavLink to="/search">{t('nav.search')}</NavLink>
               <button type="button" className="linkish" onClick={() => session.logout()}>
                 {t('nav.signOut')}
               </button>
@@ -65,6 +68,7 @@ export function App() {
                 </Route>
                 <Route path="/friends" element={<FriendsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/search" element={<RequireAuth><GlobalSearchPanel /></RequireAuth>} />
               </Routes>
             </main>
           </div>
@@ -72,4 +76,17 @@ export function App() {
       </RealtimeProvider>
     </SessionProvider>
   );
+}
+
+/** Guard for routes that need a signed-in user. Redirects to /login. */
+function RequireAuth({ children }: { children: ReactNode }) {
+  const session = useSession();
+  const { t } = useTranslation();
+  if (session.loading) {
+    return <p className="loading">{t('workspace.loadingSession')}</p>;
+  }
+  if (!session.user) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
 }

@@ -24,13 +24,16 @@ type memMsgStore struct {
 	byID map[string]domain.Message
 	list map[string][]domain.Message // conv -> messages, ascending seq
 	seq  map[string]int64
+	// members maps conv -> member set, used by GlobalSearch ACL.
+	members map[string]map[string]bool
 }
 
 func newMemMsgStore() *memMsgStore {
 	return &memMsgStore{
-		byID: map[string]domain.Message{},
-		list: map[string][]domain.Message{},
-		seq:  map[string]int64{},
+		byID:    map[string]domain.Message{},
+		list:    map[string][]domain.Message{},
+		seq:     map[string]int64{},
+		members: map[string]map[string]bool{},
 	}
 }
 
@@ -102,6 +105,26 @@ func (m *memMsgStore) ListAround(_ context.Context, conversationID string, aroun
 		}
 	}
 	return out, nil
+}
+
+func (m *memMsgStore) GlobalSearch(_ context.Context, userID, query string, cursor *domain.SearchCursor, limit int) ([]domain.GlobalSearchResult, *domain.SearchCursor, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var out []domain.GlobalSearchResult
+	for convID, msgs := range m.list {
+		if !m.members[convID][userID] {
+			continue
+		}
+		for _, msg := range msgs {
+			if msg.RecalledAt != nil {
+				continue
+			}
+			if strings.Contains(strings.ToLower(msg.Body), strings.ToLower(query)) {
+				out = append(out, domain.GlobalSearchResult{Message: msg})
+			}
+		}
+	}
+	return out, nil, nil
 }
 
 func (m *memMsgStore) FindByID(_ context.Context, id string) (domain.Message, error) {
@@ -273,5 +296,81 @@ func TestMessageListAroundBeforeMutuallyExclusive(t *testing.T) {
 	h.List(rr, req, "c1")
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", rr.Code)
+	}
+}
+
+func TestGlobalSearchHandler(t *testing.T) {
+	h, store := messageHandlerHarness()
+	ctx := context.Background()
+	store.members["c1"] = map[string]bool{"u1": true, "u2": true}
+	store.members["c2"] = map[string]bool{"u1": true}
+	seed2 := func(conv, body string) {
+		if _, err := store.Insert(ctx, domain.Message{ID: uuid.NewString(), ConversationID: conv, SenderID: "u1", Body: body, ClientMsgID: conv + "-" + body}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	seed2("c1", "global hello one")
+	seed2("c2", "global hello two")
+
+	req := messageReq("/v1/search/messages?q=hello", "u1")
+	rr := httptest.NewRecorder()
+	h.GlobalSearch(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body %s", rr.Code, rr.Body.String())
+	}
+	var out struct {
+		Messages []searchResultDTO `json:"messages"`
+		Next     string            `json:"next_cursor"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Messages) != 2 {
+		t.Fatalf("want 2 hits, got %d", len(out.Messages))
+	}
+}
+
+func TestGlobalSearchHandlerBlank(t *testing.T) {
+	h, _ := messageHandlerHarness()
+	req := messageReq("/v1/search/messages?q=%20%20", "u1")
+	rr := httptest.NewRecorder()
+	h.GlobalSearch(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", rr.Code)
+	}
+}
+
+func TestGlobalSearchHandlerBadCursor(t *testing.T) {
+	h, _ := messageHandlerHarness()
+	req := messageReq("/v1/search/messages?q=hello&cursor=malformed", "u1")
+	rr := httptest.NewRecorder()
+	h.GlobalSearch(rr, req)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", rr.Code)
+	}
+}
+
+func TestGlobalSearchHandlerNonMemberACL(t *testing.T) {
+	h, store := messageHandlerHarness()
+	ctx := context.Background()
+	store.members["c1"] = map[string]bool{"u1": true, "u2": true}
+	store.members["c3"] = map[string]bool{"u2": true} // u1 NOT in c3
+	if _, err := store.Insert(ctx, domain.Message{ID: uuid.NewString(), ConversationID: "c3", SenderID: "u2", Body: "secret for u2", ClientMsgID: "c3-1"}); err != nil {
+		t.Fatal(err)
+	}
+	req := messageReq("/v1/search/messages?q=secret", "u1")
+	rr := httptest.NewRecorder()
+	h.GlobalSearch(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+	var out struct {
+		Messages []searchResultDTO `json:"messages"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Messages) != 0 {
+		t.Fatalf("non-member conversation leaked: %d hits", len(out.Messages))
 	}
 }

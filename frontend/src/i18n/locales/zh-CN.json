@@ -8,7 +8,8 @@
     "settings": "设置",
     "signIn": "登录",
     "register": "注册",
-    "signOut": "退出"
+    "signOut": "退出",
+    "search": "搜索"
   },
   "home": {
     "eyebrow": "即时通讯",
@@ -104,7 +105,11 @@
     "searchTitle": "搜索消息",
     "searchPlaceholder": "搜索该会话的消息…",
     "searchEmpty": "没有与「{{q}}」匹配的消息。",
-    "searchMore": "加载更多"
+    "searchMore": "加载更多",
+    "globalSearchTitle": "全局搜索",
+    "globalSearchPlaceholder": "搜索所有会话的消息…",
+    "conversation": "会话",
+    "youSaid": "你说过"
   },
   "friends": {
     "eyebrow": "通讯录",

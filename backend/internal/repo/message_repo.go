@@ -299,6 +299,69 @@ func collectMessages(rows pgx.Rows) ([]domain.Message, error) {
 	return out, nil
 }
 
+// GlobalSearch searches all messages in conversations the user belongs to,
+// excluding recalled messages, newest-first. Pagination uses a (created_at, id)
+// composite cursor because conversation seq is only unique within a conversation.
+// Returns the results plus the next cursor (nil when the page is not full).
+func (r *MessageRepo) GlobalSearch(ctx context.Context, userID, query string, cursor *domain.SearchCursor, limit int) ([]domain.GlobalSearchResult, *domain.SearchCursor, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	var rows pgx.Rows
+	var err error
+	if cursor != nil {
+		rows, err = r.pool.Query(ctx, `
+			SELECT m.id, m.conversation_id, m.sender_id, m.body, m.client_msg_id, m.seq, m.created_at,
+				m.reply_to_message_id, m.edited_at, m.recalled_at, c.title
+			FROM messages m
+			INNER JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = $1
+			INNER JOIN conversations c ON c.id = m.conversation_id
+			WHERE m.recalled_at IS NULL AND m.body ILIKE '%'||$2||'%'
+			  AND (m.created_at, m.id) < ($3, $4)
+			ORDER BY m.created_at DESC, m.id DESC
+			LIMIT $5
+		`, userID, query, cursor.CreatedAt, cursor.ID, limit)
+	} else {
+		rows, err = r.pool.Query(ctx, `
+			SELECT m.id, m.conversation_id, m.sender_id, m.body, m.client_msg_id, m.seq, m.created_at,
+				m.reply_to_message_id, m.edited_at, m.recalled_at, c.title
+			FROM messages m
+			INNER JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = $1
+			INNER JOIN conversations c ON c.id = m.conversation_id
+			WHERE m.recalled_at IS NULL AND m.body ILIKE '%'||$2||'%'
+			ORDER BY m.created_at DESC, m.id DESC
+			LIMIT $3
+		`, userID, query, limit)
+	}
+	if err != nil {
+		return nil, nil, apperr.Internal("global search failed", err)
+	}
+	defer rows.Close()
+
+	var out []domain.GlobalSearchResult
+	for rows.Next() {
+		var m domain.Message
+		var title *string
+		if err := rows.Scan(
+			&m.ID, &m.ConversationID, &m.SenderID, &m.Body, &m.ClientMsgID, &m.Seq, &m.CreatedAt,
+			&m.ReplyToMessageID, &m.EditedAt, &m.RecalledAt, &title,
+		); err != nil {
+			return nil, nil, apperr.Internal("scan global search failed", err)
+		}
+		out = append(out, domain.GlobalSearchResult{Message: m, ConversationTitle: title})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
+
+	var next *domain.SearchCursor
+	if len(out) == limit {
+		last := out[len(out)-1].Message
+		next = &domain.SearchCursor{CreatedAt: last.CreatedAt, ID: last.ID}
+	}
+	return out, next, nil
+}
+
 // UpdateBody edits a message body and its edited_at. Also refreshes the
 // conversation list preview when the edited message is the conversation head.
 func (r *MessageRepo) UpdateBody(ctx context.Context, id, body string, editedAt time.Time) (domain.Message, error) {

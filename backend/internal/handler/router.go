@@ -110,6 +110,8 @@ func NewMux(deps Deps) http.Handler {
 		friends.OpenConversation(w, r, r.PathValue("userID"))
 	})))
 
+	mux.Handle("GET /v1/search/messages", require(http.HandlerFunc(msg.GlobalSearch)))
+
 	mux.Handle("GET /v1/push/vapid", require(http.HandlerFunc(push.VAPID)))
 	mux.Handle("POST /v1/push/subscriptions", require(http.HandlerFunc(push.Register)))
 	mux.Handle("DELETE /v1/push/subscriptions", require(http.HandlerFunc(push.Unregister)))
