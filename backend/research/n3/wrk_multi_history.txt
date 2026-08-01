@@ -1,0 +1,13 @@
+Running 10s test @ http://localhost:8080/v1/conversations/adf92673-cf09-4ca1-82c3-cacf19593f4c/messages
+  8 threads and 200 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    31.39ms   19.90ms 296.98ms   96.24%
+    Req/Sec   841.80    181.07     1.12k    82.38%
+  Latency Distribution
+     50%   27.57ms
+     75%   32.06ms
+     90%   45.08ms
+     99%  133.01ms
+  67227 requests in 10.04s, 463.50MB read
+Requests/sec:   6694.01
+Transfer/sec:     46.15MB

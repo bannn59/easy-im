@@ -1,0 +1,13 @@
+Running 10s test @ http://localhost:8081/v1/auth/login
+  8 threads and 200 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   509.48ms   64.36ms 690.57ms   92.49%
+    Req/Sec    52.02     35.87   171.00     66.00%
+  Latency Distribution
+     50%  517.19ms
+     75%  535.32ms
+     90%  554.12ms
+     99%  594.11ms
+  3824 requests in 10.02s, 2.06MB read
+Requests/sec:    381.80
+Transfer/sec:    211.03KB
