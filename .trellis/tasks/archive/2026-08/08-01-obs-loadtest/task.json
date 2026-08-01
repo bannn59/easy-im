@@ -1,0 +1,29 @@
+{
+  "id": "obs-loadtest",
+  "name": "obs-loadtest",
+  "title": "可观测性metrics与并发压测",
+  "description": "开发期轻量可观测性（Prometheus metrics 埋点）+ wrk 并发压测：测单机与水平扩展2-3节点（经负载均衡器）的并发吞吐基线。无 OTel。",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "ban",
+  "assignee": "ban",
+  "createdAt": "2026-08-01",
+  "completedAt": "2026-08-01",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "08-01-obs-metrics",
+    "08-01-obs-loadtest-run"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}
