@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 23
+- **Total Sessions**: 24
 - **Last Active**: 2026-08-01
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~796 | Active |
+| `journal-1.md` | ~818 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 24 | 2026-08-01 | 跨节点组事件广播 | `e049146`, `d216a0f` | `main` |
 | 23 | 2026-08-01 | 群名称编辑 | `e16416c`, `ed3ad10` | `main` |
 | 22 | 2026-08-01 | P7 multi-node realtime fanout (Kafka-backed) | `97b6797` | `main` |
 | 21 | 2026-07-31 | P6 Offline push (Web Push PWA) | `3cfbd83`, `94f4bcf`, `4ee6b57`, `1962e0b` | `main` |

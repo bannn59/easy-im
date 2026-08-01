@@ -794,3 +794,25 @@ Added full group member lifecycle: add/leave/kick/transfer with realtime members
 ### Status
 
 [OK] **Completed**
+
+
+## Session 24: 跨节点组事件广播
+
+**Date**: 2026-08-01
+**Task**: 跨节点组事件广播
+**Branch**: `main`
+
+### Summary
+
+members.changed 与 conversation.renamed 从本地节点广播升级为跨节点 Kafka 广播。新增 group.members_changed / group.conversation_renamed 总线事件类型；ConversationService 经 WithGroupEventPublisher 发布（nil-safe）；fanout consumer 重建 WS 帧跨节点投递（members.changed 用事件自带 member_ids，conversation.renamed 现查成员）。单测 9 包全绿 + 双节点端到端实测通过。spec 同步 realtime-messaging。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e049146` | (see git log) |
+| `d216a0f` | (see git log) |
+
+### Status
+
+[OK] **Completed**
