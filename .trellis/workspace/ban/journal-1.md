@@ -816,3 +816,25 @@ members.changed 与 conversation.renamed 从本地节点广播升级为跨节点
 ### Status
 
 [OK] **Completed**
+
+
+## Session 25: 历史消息搜索
+
+**Date**: 2026-08-01
+**Task**: 历史消息搜索
+**Branch**: `main`
+
+### Summary
+
+会话内历史消息搜索 + 跳转定位。新增 GET /messages/search（ILIKE、排除撤回、分页）与 GET /messages?around_seq（跳转窗口、含撤回、与 before_seq 互斥）；service requireMember ACL；前端 SearchPanel + 点击结果 around_seq 加载 + 高亮。10 个新测试 + 端到端实测。修复两个 SQL bug（参数编号、::bigint 类型推断）。spec 同步搜索契约。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a7c1290` | (see git log) |
+| `71157eb` | (see git log) |
+
+### Status
+
+[OK] **Completed**
